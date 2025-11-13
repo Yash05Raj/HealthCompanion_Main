@@ -6,7 +6,7 @@ import Prescriptions from './pages/Prescriptions';
 import Reminders from './pages/Reminders';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 const theme = createTheme({
   palette: {
@@ -75,6 +75,19 @@ const theme = createTheme({
   }
 });
 
+const RequireAuth = ({ children }) => {
+  const { currentUser } = useAuth();
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+const RedirectIfAuth = ({ children }) => {
+  const { currentUser } = useAuth();
+  return currentUser ? <Navigate to="/" replace /> : children;
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -83,22 +96,24 @@ function App() {
         <Router>
           <Box sx={{ display: 'flex', minHeight: '100vh' }}>
             <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<SignUp />} />
+              <Route path="/login" element={<RedirectIfAuth><Login /></RedirectIfAuth>} />
+              <Route path="/signup" element={<RedirectIfAuth><SignUp /></RedirectIfAuth>} />
               <Route
                 path="/*"
                 element={
-                  <Box sx={{ display: 'flex', flex: 1 }}>
-                    <Sidebar />
-                    <Box component="main" sx={{ flexGrow: 1, p: 4, maxWidth: 1200, mx: 'auto' }}>
-                      <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/prescriptions" element={<Prescriptions />} />
-                        <Route path="/reminders" element={<Reminders />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </Routes>
+                  <RequireAuth>
+                    <Box sx={{ display: 'flex', flex: 1 }}>
+                      <Sidebar />
+                      <Box component="main" sx={{ flexGrow: 1, p: 4, maxWidth: 1200, mx: 'auto' }}>
+                        <Routes>
+                          <Route path="/" element={<Dashboard />} />
+                          <Route path="/prescriptions" element={<Prescriptions />} />
+                          <Route path="/reminders" element={<Reminders />} />
+                          <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
+                      </Box>
                     </Box>
-                  </Box>
+                  </RequireAuth>
                 }
               />
             </Routes>

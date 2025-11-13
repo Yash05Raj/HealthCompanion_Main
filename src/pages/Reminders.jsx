@@ -15,7 +15,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
 
 const StatCard = ({ title, value, subtitle, icon }) => (
   <Card
@@ -123,6 +123,11 @@ function Reminders() {
     complianceRate: 85,
     overdue: 1,
   });
+  const [openDialog, setOpenDialog] = useState(false);
+  const [medicationName, setMedicationName] = useState('');
+  const [dosage, setDosage] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchReminders = async () => {
@@ -146,15 +151,62 @@ function Reminders() {
   }, [currentUser]);
 
   const handleMarkTaken = async (id) => {
-    // Implement mark taken functionality
+    try {
+      const takenAt = new Date().toISOString();
+      await updateDoc(doc(db, 'reminders', id), { status: 'Taken', takenAt });
+      setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'Taken', takenAt } : r)));
+    } catch (e) {
+      console.error('Error updating reminder:', e);
+    }
   };
 
-  const handleSnooze = (id) => {
-    // Implement snooze functionality
+  const handleSnooze = async (id) => {
+    try {
+      const r = reminders.find((x) => x.id === id);
+      const base = r?.scheduledTime ? new Date(r.scheduledTime) : new Date();
+      base.setMinutes(base.getMinutes() + 10);
+      const newTime = base.toISOString();
+      await updateDoc(doc(db, 'reminders', id), { scheduledTime: newTime, status: 'Pending' });
+      setReminders((prev) => prev.map((x) => (x.id === id ? { ...x, scheduledTime: newTime, status: 'Pending' } : x)));
+    } catch (e) {
+      console.error('Error snoozing reminder:', e);
+    }
   };
 
-  const handleSkip = (id) => {
-    // Implement skip functionality
+  const handleSkip = async (id) => {
+    try {
+      await updateDoc(doc(db, 'reminders', id), { status: 'Missed' });
+      setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'Missed' } : r)));
+    } catch (e) {
+      console.error('Error skipping reminder:', e);
+    }
+  };
+
+  const handleAddReminder = async () => {
+    if (!currentUser || !medicationName || !scheduledTime) {
+      setError('Please provide medication name and schedule time');
+      return;
+    }
+    try {
+      setError('');
+      const data = {
+        userId: currentUser.uid,
+        medicationName,
+        dosage,
+        scheduledTime: new Date(scheduledTime).toISOString(),
+        status: 'Pending',
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(collection(db, 'reminders'), data);
+      setReminders((prev) => [...prev, { id: docRef.id, ...data }]);
+      setOpenDialog(false);
+      setMedicationName('');
+      setDosage('');
+      setScheduledTime('');
+    } catch (e) {
+      console.error('Error adding reminder:', e);
+      setError('Failed to add reminder');
+    }
   };
 
   return (
@@ -172,6 +224,7 @@ function Reminders() {
           variant="contained"
           startIcon={<AddIcon />}
           sx={{ textTransform: 'none' }}
+          onClick={() => setOpenDialog(true)}
         >
           Add Reminder
         </Button>
@@ -218,6 +271,40 @@ function Reminders() {
           <Tab label="Upcoming" />
           <Tab label="History" />
         </Tabs>
+
+        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+          <Typography variant="h6" sx={{ px: 3, pt: 3 }}>Add Reminder</Typography>
+          <Box sx={{ p: 3 }}>
+            {error && <Chip color="error" label={error} sx={{ mb: 2 }} />}
+            <TextField
+              fullWidth
+              label="Medication Name"
+              value={medicationName}
+              onChange={(e) => setMedicationName(e.target.value)}
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Dosage (optional)"
+              value={dosage}
+              onChange={(e) => setDosage(e.target.value)}
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Scheduled Time"
+              type="datetime-local"
+              value={scheduledTime}
+              onChange={(e) => setScheduledTime(e.target.value)}
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+            />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+              <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+              <Button variant="contained" onClick={handleAddReminder}>Add</Button>
+            </Box>
+          </Box>
+        </Dialog>
 
         {reminders.map((reminder) => (
           <ReminderItem
