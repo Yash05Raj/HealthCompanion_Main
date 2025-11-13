@@ -8,6 +8,9 @@ import {
   Chip,
   Tabs,
   Tab,
+  TextField,
+  Dialog,
+  MenuItem,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -128,6 +131,8 @@ function Reminders() {
   const [dosage, setDosage] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [error, setError] = useState('');
+  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState('');
+  const [prescriptionsList, setPrescriptionsList] = useState([]);
 
   useEffect(() => {
     const fetchReminders = async () => {
@@ -148,6 +153,23 @@ function Reminders() {
     };
 
     fetchReminders();
+  }, [currentUser]);
+
+  useEffect(() => {
+    const fetchPrescriptions = async () => {
+      if (!currentUser) return;
+      try {
+        const prescriptionsRef = collection(db, 'prescriptions');
+        const q = query(prescriptionsRef, where('userId', '==', currentUser.uid));
+        const snapshot = await getDocs(q);
+        const list = [];
+        snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        setPrescriptionsList(list);
+      } catch (e) {
+        console.error('Error fetching prescriptions:', e);
+      }
+    };
+    fetchPrescriptions();
   }, [currentUser]);
 
   const handleMarkTaken = async (id) => {
@@ -191,6 +213,7 @@ function Reminders() {
       setError('');
       const data = {
         userId: currentUser.uid,
+        prescriptionId: selectedPrescriptionId || null,
         medicationName,
         dosage,
         scheduledTime: new Date(scheduledTime).toISOString(),
@@ -203,6 +226,7 @@ function Reminders() {
       setMedicationName('');
       setDosage('');
       setScheduledTime('');
+      setSelectedPrescriptionId('');
     } catch (e) {
       console.error('Error adding reminder:', e);
       setError('Failed to add reminder');
@@ -276,6 +300,26 @@ function Reminders() {
           <Typography variant="h6" sx={{ px: 3, pt: 3 }}>Add Reminder</Typography>
           <Box sx={{ p: 3 }}>
             {error && <Chip color="error" label={error} sx={{ mb: 2 }} />}
+            <TextField
+              select
+              fullWidth
+              label="Linked Prescription (optional)"
+              value={selectedPrescriptionId}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedPrescriptionId(val);
+                const p = prescriptionsList.find((x) => x.id === val);
+                if (p) {
+                  setMedicationName(p.medicationName || '');
+                  setDosage(p.dosage || '');
+                }
+              }}
+              margin="normal"
+            >
+              {prescriptionsList.map((p) => (
+                <MenuItem key={p.id} value={p.id}>{`${p.medicationName || 'Untitled'}${p.dosage ? ` - ${p.dosage}` : ''}`}</MenuItem>
+              ))}
+            </TextField>
             <TextField
               fullWidth
               label="Medication Name"

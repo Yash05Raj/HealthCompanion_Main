@@ -103,6 +103,7 @@ function Prescriptions() {
   const [dosage, setDosage] = useState('');
   const [prescribedBy, setPrescribedBy] = useState('');
   const [error, setError] = useState('');
+  const [instructions, setInstructions] = useState('');
 
   useEffect(() => {
     const fetchPrescriptions = async () => {
@@ -128,8 +129,8 @@ function Prescriptions() {
   const handleDelete = async (id) => {
     try {
       const prescription = prescriptions.find(p => p.id === id);
-      if (prescription?.fileUrl) {
-        const fileRef = ref(storage, prescription.fileUrl);
+      if (prescription?.filePath) {
+        const fileRef = ref(storage, prescription.filePath);
         await deleteObject(fileRef);
       }
       await deleteDoc(doc(db, 'prescriptions', id));
@@ -141,8 +142,8 @@ function Prescriptions() {
   };
 
   const handleDownload = (prescription) => {
-    if (prescription.fileUrl) {
-      window.open(prescription.fileUrl, '_blank');
+    if (prescription.fileURL) {
+      window.open(prescription.fileURL, '_blank');
     }
   };
 
@@ -172,17 +173,20 @@ function Prescriptions() {
         return;
       }
 
-      const fileRef = ref(storage, `prescriptions/${currentUser.uid}/${Date.now()}_${selectedFile.name}`);
+      const filePath = `prescriptions/${currentUser.uid}/${Date.now()}_${selectedFile.name}`;
+      const fileRef = ref(storage, filePath);
       await uploadBytes(fileRef, selectedFile);
-      const fileUrl = await getDownloadURL(fileRef);
+      const fileURL = await getDownloadURL(fileRef);
 
       const prescriptionData = {
         userId: currentUser.uid,
         medicationName,
         dosage,
         prescribedBy,
+        instructions,
         dateAdded: new Date().toLocaleDateString(),
-        fileUrl,
+        fileURL,
+        filePath,
         fileName: selectedFile.name,
         uploadDate: new Date().toISOString(),
         status: 'active'
@@ -196,6 +200,7 @@ function Prescriptions() {
       setMedicationName('');
       setDosage('');
       setPrescribedBy('');
+      setInstructions('');
       setError('');
     } catch (error) {
       console.error('Error uploading prescription:', error);
@@ -251,6 +256,15 @@ function Prescriptions() {
               value={prescribedBy}
               onChange={(e) => setPrescribedBy(e.target.value)}
               margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Instructions"
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              margin="normal"
+              multiline
+              minRows={2}
             />
             <Button
               variant="outlined"
