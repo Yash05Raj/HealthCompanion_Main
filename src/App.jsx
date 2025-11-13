@@ -6,6 +6,8 @@ import Prescriptions from './pages/Prescriptions';
 import Reminders from './pages/Reminders';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
+import Settings from './pages/Settings';
+import Privacy from './pages/Privacy';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 const theme = createTheme({
@@ -94,7 +96,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
-          <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+          <Box sx={{ minHeight: '100vh' }} >
             <Routes>
               <Route path="/login" element={<RedirectIfAuth><Login /></RedirectIfAuth>} />
               <Route path="/signup" element={<RedirectIfAuth><SignUp /></RedirectIfAuth>} />
@@ -109,6 +111,8 @@ function App() {
                           <Route path="/" element={<Dashboard />} />
                           <Route path="/prescriptions" element={<Prescriptions />} />
                           <Route path="/reminders" element={<Reminders />} />
+                          <Route path="/settings" element={<Settings />} />
+                          <Route path="/privacy" element={<Privacy />} />
                           <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
                       </Box>

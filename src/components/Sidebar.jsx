@@ -20,6 +20,7 @@ import {
   Settings as SettingsIcon,
   Security as SecurityIcon,
   PrivacyTip as PrivacyIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -40,6 +41,7 @@ function Sidebar() {
   const accountMenuItems = [
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
     { text: 'Privacy', icon: <PrivacyIcon />, path: '/privacy' },
+    { text: 'Logout', icon: <LogoutIcon />, action: 'logout' },
   ];
 
   return (
@@ -125,8 +127,15 @@ function Sidebar() {
           {accountMenuItems.map((item, index) => (
             <ListItem key={item.text} disablePadding>
               <ListItemButton
-                selected={location.pathname === item.path}
-                onClick={() => navigate(item.path)}
+                selected={item.path ? location.pathname === item.path : false}
+                onClick={async () => {
+                  if (item.action === 'logout') {
+                    await logout();
+                    navigate('/login');
+                  } else if (item.path) {
+                    navigate(item.path);
+                  }
+                }}
               >
                 <ListItemIcon sx={{ color: '#6B7280' }}>{item.icon}</ListItemIcon>
                 <ListItemText

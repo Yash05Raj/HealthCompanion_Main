@@ -122,9 +122,9 @@ function Reminders() {
   const [selectedTab, setSelectedTab] = useState(0);
   const [reminders, setReminders] = useState([]);
   const [stats, setStats] = useState({
-    todaysDoses: 2,
-    complianceRate: 85,
-    overdue: 1,
+    todaysDoses: 0,
+    complianceRate: 0,
+    overdue: 0,
   });
   const [openDialog, setOpenDialog] = useState(false);
   const [medicationName, setMedicationName] = useState('');
@@ -265,7 +265,7 @@ function Reminders() {
         <StatCard
           title="Today's Doses"
           value={stats.todaysDoses}
-          subtitle="2 remaining today"
+          subtitle="Remaining today"
           icon={<MedicationIcon color="primary" />}
         />
         <StatCard

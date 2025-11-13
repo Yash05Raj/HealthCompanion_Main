@@ -1,13 +1,17 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '../firebase';
+import { auth, db, storage } from '../firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  updatePassword,
+  deleteUser,
+  EmailAuthProvider
 } from 'firebase/auth';
-import { db } from '../firebase';
-import { setDoc, doc } from 'firebase/firestore';
+import { setDoc, doc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { ref, listAll, deleteObject } from 'firebase/storage';
 
 const AuthContext = createContext();
 
@@ -36,6 +40,56 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
+  async function changePassword(currentPwd, newPwd) {
+    if (!auth.currentUser) throw new Error('No authenticated user');
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPwd);
+    await reauthenticateWithCredential(auth.currentUser, credential);
+    await updatePassword(auth.currentUser, newPwd);
+    return true;
+  }
+
+  async function deleteAccount(currentPwd) {
+    if (!auth.currentUser) throw new Error('No authenticated user');
+    const user = auth.currentUser;
+    const uid = user.uid;
+
+    // Reauthenticate to avoid requires-recent-login
+    if (currentPwd) {
+      const credential = EmailAuthProvider.credential(user.email, currentPwd);
+      await reauthenticateWithCredential(user, credential);
+    }
+
+    // Cleanup Firestore data
+    try {
+      const collectionsToClean = ['prescriptions', 'reminders'];
+      for (const col of collectionsToClean) {
+        const q = query(collection(db, col), where('userId', '==', uid));
+        const snap = await getDocs(q);
+        const deletes = snap.docs.map((d) => deleteDoc(doc(db, col, d.id)));
+        await Promise.all(deletes);
+      }
+      // Delete user profile doc
+      await deleteDoc(doc(db, 'users', uid));
+    } catch (e) {
+      console.error('Error cleaning Firestore data during account deletion:', e);
+    }
+
+    // Cleanup Storage files under prescriptions/uid
+    try {
+      const folderRef = ref(storage, `prescriptions/${uid}`);
+      const list = await listAll(folderRef);
+      const fileDeletes = list.items.map((itemRef) => deleteObject(itemRef));
+      await Promise.all(fileDeletes);
+    } catch (e) {
+      // If folder doesn't exist or listing fails, continue
+      console.warn('Storage cleanup warning:', e?.message || e);
+    }
+
+    // Finally delete the auth user
+    await deleteUser(user);
+    return true;
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -49,7 +103,9 @@ export function AuthProvider({ children }) {
     currentUser,
     signup,
     login,
-    logout
+    logout,
+    changePassword,
+    deleteAccount
   };
 
   return (
