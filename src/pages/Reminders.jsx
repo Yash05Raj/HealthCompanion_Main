@@ -18,7 +18,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 const StatCard = ({ title, value, subtitle, icon }) => (
   <Card
@@ -133,6 +133,7 @@ function Reminders() {
   const [error, setError] = useState('');
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState('');
   const [prescriptionsList, setPrescriptionsList] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchReminders = async () => {
@@ -140,11 +141,13 @@ function Reminders() {
 
       try {
         const remindersRef = collection(db, 'reminders');
-        const q = query(remindersRef, where('userId', '==', currentUser.uid));
+        const q = query(remindersRef, where('userId', '==', currentUser.uid), orderBy('scheduledTime'));
         const querySnapshot = await getDocs(q);
         const remindersList = [];
-        querySnapshot.forEach((doc) => {
-          remindersList.push({ id: doc.id, ...doc.data() });
+        querySnapshot.forEach((d) => {
+          const data = d.data();
+          const scheduledStr = data.scheduledTime && typeof data.scheduledTime?.toDate === 'function' ? data.scheduledTime.toDate().toISOString() : data.scheduledTime;
+          remindersList.push({ id: d.id, ...data, scheduledTime: scheduledStr });
         });
         setReminders(remindersList);
       } catch (error) {
@@ -187,9 +190,9 @@ function Reminders() {
       const r = reminders.find((x) => x.id === id);
       const base = r?.scheduledTime ? new Date(r.scheduledTime) : new Date();
       base.setMinutes(base.getMinutes() + 10);
-      const newTime = base.toISOString();
-      await updateDoc(doc(db, 'reminders', id), { scheduledTime: newTime, status: 'Pending' });
-      setReminders((prev) => prev.map((x) => (x.id === id ? { ...x, scheduledTime: newTime, status: 'Pending' } : x)));
+      const newTimeIso = base.toISOString();
+      await updateDoc(doc(db, 'reminders', id), { scheduledTime: Timestamp.fromDate(base), status: 'Pending' });
+      setReminders((prev) => prev.map((x) => (x.id === id ? { ...x, scheduledTime: newTimeIso, status: 'Pending' } : x)));
     } catch (e) {
       console.error('Error snoozing reminder:', e);
     }
@@ -210,18 +213,19 @@ function Reminders() {
       return;
     }
     try {
+      setSubmitting(true);
       setError('');
       const data = {
         userId: currentUser.uid,
         prescriptionId: selectedPrescriptionId || null,
         medicationName,
         dosage,
-        scheduledTime: new Date(scheduledTime).toISOString(),
+        scheduledTime: Timestamp.fromDate(new Date(scheduledTime)),
         status: 'Pending',
-        createdAt: new Date().toISOString()
+        createdAt: serverTimestamp()
       };
       const docRef = await addDoc(collection(db, 'reminders'), data);
-      setReminders((prev) => [...prev, { id: docRef.id, ...data }]);
+      setReminders((prev) => [...prev, { id: docRef.id, ...data, scheduledTime: new Date(scheduledTime).toISOString() }]);
       setOpenDialog(false);
       setMedicationName('');
       setDosage('');
@@ -230,6 +234,8 @@ function Reminders() {
     } catch (e) {
       console.error('Error adding reminder:', e);
       setError('Failed to add reminder');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -345,7 +351,7 @@ function Reminders() {
             />
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
               <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-              <Button variant="contained" onClick={handleAddReminder}>Add</Button>
+              <Button variant="contained" onClick={handleAddReminder} disabled={submitting}>{submitting ? 'Adding...' : 'Add'}</Button>
             </Box>
           </Box>
         </Dialog>
