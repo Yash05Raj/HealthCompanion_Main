@@ -104,6 +104,7 @@ function Prescriptions() {
   const [prescribedBy, setPrescribedBy] = useState('');
   const [error, setError] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchPrescriptions = async () => {
@@ -155,21 +156,36 @@ function Prescriptions() {
   };
 
   const handleUpload = async () => {
+    if (!currentUser) {
+      setError('You must be logged in to upload prescriptions');
+      return;
+    }
+
     if (!selectedFile || !medicationName || !dosage || !prescribedBy) {
       setError('Please fill in all fields and select a file');
       return;
     }
 
     try {
+      setLoading(true);
+      setError('');
+
+      // Debug logging
+      console.log('Current User:', currentUser);
+      console.log('User ID:', currentUser?.uid);
+      console.log('Is Authenticated:', !!currentUser);
+
       // Validate file type and size
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       if (!allowedTypes.includes(selectedFile.type)) {
         setError('Please upload a PDF or image file (JPEG, PNG)');
+        setLoading(false);
         return;
       }
       
       if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
         setError('File size must be less than 5MB');
+        setLoading(false);
         return;
       }
 
@@ -204,7 +220,9 @@ function Prescriptions() {
       setError('');
     } catch (error) {
       console.error('Error uploading prescription:', error);
-      setError('Failed to upload prescription');
+      setError(error.message || 'Failed to upload prescription. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -227,12 +245,23 @@ function Prescriptions() {
           variant="contained"
           startIcon={<CloudUploadIcon />}
           sx={{ textTransform: 'none' }}
-          onClick={() => setOpenDialog(true)}
+          onClick={() => {
+            setError('');
+            setSelectedFile(null);
+            setMedicationName('');
+            setDosage('');
+            setPrescribedBy('');
+            setInstructions('');
+            setOpenDialog(true);
+          }}
         >
           Add New
         </Button>
 
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        <Dialog open={openDialog} onClose={() => {
+          setOpenDialog(false);
+          setError('');
+        }} maxWidth="sm" fullWidth>
           <DialogTitle>Add New Prescription</DialogTitle>
           <DialogContent>
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -287,9 +316,14 @@ function Prescriptions() {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-            <Button onClick={handleUpload} variant="contained">
-              Upload
+            <Button onClick={() => {
+              setOpenDialog(false);
+              setError('');
+            }} disabled={loading}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpload} variant="contained" disabled={loading}>
+              {loading ? 'Uploading...' : 'Upload'}
             </Button>
           </DialogActions>
         </Dialog>

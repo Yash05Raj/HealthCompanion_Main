@@ -10,7 +10,11 @@ import {
   Tab,
   TextField,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   MenuItem,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -75,7 +79,7 @@ const ReminderItem = ({ reminder, onMarkTaken, onSnooze, onSkip }) => (
       />
     </Box>
     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-      Scheduled: {reminder.scheduledTime}
+      Scheduled: {reminder.scheduledTime ? new Date(reminder.scheduledTime).toLocaleString() : 'Not set'}
     </Typography>
     <Box sx={{ display: 'flex', gap: 1 }}>
       {reminder.status === 'Overdue' ? (
@@ -208,32 +212,60 @@ function Reminders() {
   };
 
   const handleAddReminder = async () => {
-    if (!currentUser || !medicationName || !scheduledTime) {
-      setError('Please provide medication name and schedule time');
+    if (!currentUser) {
+      setError('You must be logged in to add reminders');
       return;
     }
+
+    if (!medicationName || !scheduledTime) {
+      setError('Please provide medication name and scheduled time');
+      return;
+    }
+
+    // Validate scheduled time is in the future (optional check)
+    const scheduledDate = new Date(scheduledTime);
+    if (isNaN(scheduledDate.getTime())) {
+      setError('Please provide a valid date and time');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError('');
+      
+      // Debug logging
+      console.log('Current User:', currentUser);
+      console.log('User ID:', currentUser?.uid);
+      console.log('Is Authenticated:', !!currentUser);
+      
       const data = {
         userId: currentUser.uid,
         prescriptionId: selectedPrescriptionId || null,
-        medicationName,
-        dosage,
-        scheduledTime: Timestamp.fromDate(new Date(scheduledTime)),
+        medicationName: medicationName.trim(),
+        dosage: dosage.trim() || '',
+        scheduledTime: Timestamp.fromDate(scheduledDate),
         status: 'Pending',
         createdAt: serverTimestamp()
       };
+      
+      console.log('Data being sent:', { ...data, scheduledTime: scheduledDate.toISOString(), createdAt: 'serverTimestamp' });
+      
       const docRef = await addDoc(collection(db, 'reminders'), data);
-      setReminders((prev) => [...prev, { id: docRef.id, ...data, scheduledTime: new Date(scheduledTime).toISOString() }]);
+      setReminders((prev) => [...prev, { 
+        id: docRef.id, 
+        ...data, 
+        scheduledTime: scheduledDate.toISOString() 
+      }]);
+      
       setOpenDialog(false);
       setMedicationName('');
       setDosage('');
       setScheduledTime('');
       setSelectedPrescriptionId('');
+      setError('');
     } catch (e) {
       console.error('Error adding reminder:', e);
-      setError('Failed to add reminder');
+      setError(e.message || 'Failed to add reminder. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -254,7 +286,14 @@ function Reminders() {
           variant="contained"
           startIcon={<AddIcon />}
           sx={{ textTransform: 'none' }}
-          onClick={() => setOpenDialog(true)}
+          onClick={() => {
+            setError('');
+            setMedicationName('');
+            setDosage('');
+            setScheduledTime('');
+            setSelectedPrescriptionId('');
+            setOpenDialog(true);
+          }}
         >
           Add Reminder
         </Button>
@@ -302,10 +341,13 @@ function Reminders() {
           <Tab label="History" />
         </Tabs>
 
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-          <Typography variant="h6" sx={{ px: 3, pt: 3 }}>Add Reminder</Typography>
-          <Box sx={{ p: 3 }}>
-            {error && <Chip color="error" label={error} sx={{ mb: 2 }} />}
+        <Dialog open={openDialog} onClose={() => {
+          setOpenDialog(false);
+          setError('');
+        }} maxWidth="sm" fullWidth>
+          <DialogTitle>Add Reminder</DialogTitle>
+          <DialogContent>
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
             <TextField
               select
               fullWidth
@@ -314,14 +356,22 @@ function Reminders() {
               onChange={(e) => {
                 const val = e.target.value;
                 setSelectedPrescriptionId(val);
-                const p = prescriptionsList.find((x) => x.id === val);
-                if (p) {
-                  setMedicationName(p.medicationName || '');
-                  setDosage(p.dosage || '');
+                if (val) {
+                  const p = prescriptionsList.find((x) => x.id === val);
+                  if (p) {
+                    setMedicationName(p.medicationName || '');
+                    setDosage(p.dosage || '');
+                  }
+                } else {
+                  setMedicationName('');
+                  setDosage('');
                 }
               }}
               margin="normal"
             >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
               {prescriptionsList.map((p) => (
                 <MenuItem key={p.id} value={p.id}>{`${p.medicationName || 'Untitled'}${p.dosage ? ` - ${p.dosage}` : ''}`}</MenuItem>
               ))}
@@ -332,6 +382,7 @@ function Reminders() {
               value={medicationName}
               onChange={(e) => setMedicationName(e.target.value)}
               margin="normal"
+              required
             />
             <TextField
               fullWidth
@@ -348,12 +399,20 @@ function Reminders() {
               onChange={(e) => setScheduledTime(e.target.value)}
               margin="normal"
               InputLabelProps={{ shrink: true }}
+              required
             />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
-              <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-              <Button variant="contained" onClick={handleAddReminder} disabled={submitting}>{submitting ? 'Adding...' : 'Add'}</Button>
-            </Box>
-          </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => {
+              setOpenDialog(false);
+              setError('');
+            }} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button variant="contained" onClick={handleAddReminder} disabled={submitting}>
+              {submitting ? 'Adding...' : 'Add'}
+            </Button>
+          </DialogActions>
         </Dialog>
 
         {reminders.map((reminder) => (
