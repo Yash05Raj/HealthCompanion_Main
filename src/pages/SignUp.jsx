@@ -9,20 +9,48 @@ import {
   Paper,
   Alert,
   Stack,
+  Divider,
 } from '@mui/material';
+import GoogleIcon from '@mui/icons-material/Google';
+import EmailIcon from '@mui/icons-material/Email';
 import { useAuth } from '../contexts/AuthContext';
 
 function SignUp() {
   const navigate = useNavigate();
-  const { signup, resetPassword } = useAuth();
+  const { signup, signInWithGoogle, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState('');
   const [resetError, setResetError] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+
+  const handleGoogleSignUp = async () => {
+    try {
+      setError('');
+      setGoogleLoading(true);
+      await signInWithGoogle();
+      navigate('/');
+    } catch (error) {
+      console.error('Google sign-up error:', error);
+      let errorMessage = 'Failed to sign up with Google. Please try again.';
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-up popup was closed. Please try again.';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Popup was blocked. Please allow popups and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,13 +59,35 @@ function SignUp() {
       return setError('Passwords do not match');
     }
 
+    if (password.length < 6) {
+      return setError('Password must be at least 6 characters long');
+    }
+
     try {
       setError('');
       setLoading(true);
       await signup(email, password);
       navigate('/');
     } catch (error) {
-      setError('Failed to create an account. Please try again.');
+      console.error('Signup error:', error);
+      let errorMessage = 'Failed to create an account. Please try again.';
+      
+      // Provide more specific error messages
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already registered. Please sign in instead.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Please use a stronger password.';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -111,6 +161,37 @@ function SignUp() {
           </Box>
         )}
 
+        {/* Google Sign Up - Primary Method */}
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={handleGoogleSignUp}
+          disabled={googleLoading || loading}
+          startIcon={<GoogleIcon />}
+          sx={{
+            mb: 3,
+            backgroundColor: '#4285F4',
+            '&:hover': {
+              backgroundColor: '#357AE8',
+            },
+            py: 1.5,
+            fontSize: '1rem',
+            fontWeight: 500,
+          }}
+        >
+          {googleLoading ? 'Signing up...' : 'Continue with Google'}
+        </Button>
+
+        <Divider sx={{ my: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            OR
+          </Typography>
+        </Divider>
+
+        {/* Email/Password Sign Up - Secondary Method */}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
+          Sign up with Email
+        </Typography>
         <form onSubmit={handleSubmit}>
           <TextField
             fullWidth
@@ -158,12 +239,13 @@ function SignUp() {
           </Stack>
           <Button
             type="submit"
-            variant="contained"
+            variant="outlined"
             fullWidth
-            disabled={loading}
+            disabled={loading || googleLoading}
+            startIcon={<EmailIcon />}
             sx={{ mb: 2 }}
           >
-            Sign Up
+            {loading ? 'Creating account...' : 'Sign Up with Email'}
           </Button>
         </form>
       </Paper>
