@@ -10,7 +10,7 @@ The error you're seeing is because Firebase Security Rules are **NOT configured 
 
 Quick steps:
 
----
+--
 
 ## Step 1: Configure Firestore Security Rules
 
