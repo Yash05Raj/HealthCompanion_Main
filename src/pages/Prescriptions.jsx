@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Box,
+  Grid,
   Typography,
   Button,
   TextField,
@@ -26,6 +27,7 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '../firebase';
+import MedicineChatbot from '../components/MedicineChatbot';
 
 const PrescriptionCard = ({ prescription, onDelete, onDownload }) => (
   <Card
@@ -232,141 +234,148 @@ function Prescriptions() {
 
   return (
     <Box sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-            Prescriptions
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage your digital prescription records
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<CloudUploadIcon />}
-          sx={{ textTransform: 'none' }}
-          onClick={() => {
-            setError('');
-            setSelectedFile(null);
-            setMedicationName('');
-            setDosage('');
-            setPrescribedBy('');
-            setInstructions('');
-            setOpenDialog(true);
-          }}
-        >
-          Add New
-        </Button>
-
-        <Dialog open={openDialog} onClose={() => {
-          setOpenDialog(false);
-          setError('');
-        }} maxWidth="sm" fullWidth>
-          <DialogTitle>Add New Prescription</DialogTitle>
-          <DialogContent>
-            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-            <TextField
-              fullWidth
-              label="Medication Name"
-              value={medicationName}
-              onChange={(e) => setMedicationName(e.target.value)}
-              margin="normal"
-            />
-            <TextField
-              fullWidth
-              label="Dosage"
-              value={dosage}
-              onChange={(e) => setDosage(e.target.value)}
-              margin="normal"
-            />
-            <TextField
-              fullWidth
-              label="Prescribed By"
-              value={prescribedBy}
-              onChange={(e) => setPrescribedBy(e.target.value)}
-              margin="normal"
-            />
-            <TextField
-              fullWidth
-              label="Instructions"
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              margin="normal"
-              multiline
-              minRows={2}
-            />
-            <Button
-              variant="outlined"
-              component="label"
-              fullWidth
-              sx={{ mt: 2 }}
-            >
-              Upload Prescription
-              <input
-                type="file"
-                hidden
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileChange}
-              />
-            </Button>
-            {selectedFile && (
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Selected file: {selectedFile.name}
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={7}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
+                Prescriptions
               </Typography>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => {
+              <Typography variant="body1" color="text.secondary">
+                Manage your digital prescription records
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<CloudUploadIcon />}
+              sx={{ textTransform: 'none' }}
+              onClick={() => {
+                setError('');
+                setSelectedFile(null);
+                setMedicationName('');
+                setDosage('');
+                setPrescribedBy('');
+                setInstructions('');
+                setOpenDialog(true);
+              }}
+            >
+              Add New
+            </Button>
+
+            <Dialog open={openDialog} onClose={() => {
               setOpenDialog(false);
               setError('');
-            }} disabled={loading}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpload} variant="contained" disabled={loading}>
-              {loading ? 'Uploading...' : 'Upload'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Box>
+            }} maxWidth="sm" fullWidth>
+              <DialogTitle>Add New Prescription</DialogTitle>
+              <DialogContent>
+                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                <TextField
+                  fullWidth
+                  label="Medication Name"
+                  value={medicationName}
+                  onChange={(e) => setMedicationName(e.target.value)}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="Dosage"
+                  value={dosage}
+                  onChange={(e) => setDosage(e.target.value)}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="Prescribed By"
+                  value={prescribedBy}
+                  onChange={(e) => setPrescribedBy(e.target.value)}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="Instructions"
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  margin="normal"
+                  multiline
+                  minRows={2}
+                />
+                <Button
+                  variant="outlined"
+                  component="label"
+                  fullWidth
+                  sx={{ mt: 2 }}
+                >
+                  Upload Prescription
+                  <input
+                    type="file"
+                    hidden
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={handleFileChange}
+                  />
+                </Button>
+                {selectedFile && (
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    Selected file: {selectedFile.name}
+                  </Typography>
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => {
+                  setOpenDialog(false);
+                  setError('');
+                }} disabled={loading}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpload} variant="contained" disabled={loading}>
+                  {loading ? 'Uploading...' : 'Upload'}
+                </Button>
+              </DialogActions>
+            </Dialog>
+          </Box>
 
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-          All Prescriptions ({prescriptions.length})
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-          <TextField
-            fullWidth
-            placeholder="Search prescriptions..."
-            variant="outlined"
-            size="small"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Button
-            variant="outlined"
-            startIcon={<FilterIcon />}
-            sx={{ textTransform: 'none', minWidth: 100 }}
-          >
-            Filter
-          </Button>
-        </Box>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              All Prescriptions ({prescriptions.length})
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+              <TextField
+                fullWidth
+                placeholder="Search prescriptions..."
+                variant="outlined"
+                size="small"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<FilterIcon />}
+                sx={{ textTransform: 'none', minWidth: 100 }}
+              >
+                Filter
+              </Button>
+            </Box>
 
-        {filteredPrescriptions.map((prescription) => (
-          <PrescriptionCard
-            key={prescription.id}
-            prescription={prescription}
-            onDelete={handleDelete}
-            onDownload={handleDownload}
-          />
-        ))}
-      </Box>
+            {filteredPrescriptions.map((prescription) => (
+              <PrescriptionCard
+                key={prescription.id}
+                prescription={prescription}
+                onDelete={handleDelete}
+                onDownload={handleDownload}
+              />
+            ))}
+          </Box>
+        </Grid>
+        <Grid item xs={12} lg={5}>
+          <MedicineChatbot />
+        </Grid>
+      </Grid>
     </Box>
   );
 }

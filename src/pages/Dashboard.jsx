@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import MedicineChatbot from '../components/MedicineChatbot';
 
 const SummaryCard = ({ icon, count, subtitle, color = 'primary' }) => (
   <Paper
@@ -392,6 +393,9 @@ function Dashboard() {
               <ReminderItem key={reminder.id} reminder={reminder} />
             ))}
           </Box>
+        </Grid>
+        <Grid item xs={12}>
+          <MedicineChatbot />
         </Grid>
       </Grid>
     </Box>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Box,
+  Grid,
   Typography,
   Button,
   Card,
@@ -23,6 +24,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, getDocs, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import MedicineChatbot from '../components/MedicineChatbot';
 
 const StatCard = ({ title, value, subtitle, icon }) => (
   <Card
@@ -273,158 +275,165 @@ function Reminders() {
 
   return (
     <Box sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-            Medication Reminders
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage your medication schedule and notifications
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{ textTransform: 'none' }}
-          onClick={() => {
-            setError('');
-            setMedicationName('');
-            setDosage('');
-            setScheduledTime('');
-            setSelectedPrescriptionId('');
-            setOpenDialog(true);
-          }}
-        >
-          Add Reminder
-        </Button>
-      </Box>
-
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 3,
-          mb: 4,
-        }}
-      >
-        <StatCard
-          title="Today's Doses"
-          value={stats.todaysDoses}
-          subtitle="Remaining today"
-          icon={<MedicationIcon color="primary" />}
-        />
-        <StatCard
-          title="Compliance Rate"
-          value={`${stats.complianceRate}%`}
-          subtitle="This week"
-          icon={<MedicationIcon color="success" />}
-        />
-        <StatCard
-          title="Overdue"
-          value={stats.overdue}
-          subtitle="Needs attention"
-          icon={<MedicationIcon color="error" />}
-        />
-      </Box>
-
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-          Reminders
-        </Typography>
-        <Tabs
-          value={selectedTab}
-          onChange={(e, newValue) => setSelectedTab(newValue)}
-          sx={{ mb: 3 }}
-        >
-          <Tab label="Today" />
-          <Tab label="Upcoming" />
-          <Tab label="History" />
-        </Tabs>
-
-        <Dialog open={openDialog} onClose={() => {
-          setOpenDialog(false);
-          setError('');
-        }} maxWidth="sm" fullWidth>
-          <DialogTitle>Add Reminder</DialogTitle>
-          <DialogContent>
-            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-            <TextField
-              select
-              fullWidth
-              label="Linked Prescription (optional)"
-              value={selectedPrescriptionId}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedPrescriptionId(val);
-                if (val) {
-                  const p = prescriptionsList.find((x) => x.id === val);
-                  if (p) {
-                    setMedicationName(p.medicationName || '');
-                    setDosage(p.dosage || '');
-                  }
-                } else {
-                  setMedicationName('');
-                  setDosage('');
-                }
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={7}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
+                Medication Reminders
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Manage your medication schedule and notifications
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              sx={{ textTransform: 'none' }}
+              onClick={() => {
+                setError('');
+                setMedicationName('');
+                setDosage('');
+                setScheduledTime('');
+                setSelectedPrescriptionId('');
+                setOpenDialog(true);
               }}
-              margin="normal"
             >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {prescriptionsList.map((p) => (
-                <MenuItem key={p.id} value={p.id}>{`${p.medicationName || 'Untitled'}${p.dosage ? ` - ${p.dosage}` : ''}`}</MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              fullWidth
-              label="Medication Name"
-              value={medicationName}
-              onChange={(e) => setMedicationName(e.target.value)}
-              margin="normal"
-              required
+              Add Reminder
+            </Button>
+          </Box>
+
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+              gap: 3,
+              mb: 4,
+            }}
+          >
+            <StatCard
+              title="Today's Doses"
+              value={stats.todaysDoses}
+              subtitle="Remaining today"
+              icon={<MedicationIcon color="primary" />}
             />
-            <TextField
-              fullWidth
-              label="Dosage (optional)"
-              value={dosage}
-              onChange={(e) => setDosage(e.target.value)}
-              margin="normal"
+            <StatCard
+              title="Compliance Rate"
+              value={`${stats.complianceRate}%`}
+              subtitle="This week"
+              icon={<MedicationIcon color="success" />}
             />
-            <TextField
-              fullWidth
-              label="Scheduled Time"
-              type="datetime-local"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-              margin="normal"
-              InputLabelProps={{ shrink: true }}
-              required
+            <StatCard
+              title="Overdue"
+              value={stats.overdue}
+              subtitle="Needs attention"
+              icon={<MedicationIcon color="error" />}
             />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => {
+          </Box>
+
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              Reminders
+            </Typography>
+            <Tabs
+              value={selectedTab}
+              onChange={(e, newValue) => setSelectedTab(newValue)}
+              sx={{ mb: 3 }}
+            >
+              <Tab label="Today" />
+              <Tab label="Upcoming" />
+              <Tab label="History" />
+            </Tabs>
+
+            <Dialog open={openDialog} onClose={() => {
               setOpenDialog(false);
               setError('');
-            }} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button variant="contained" onClick={handleAddReminder} disabled={submitting}>
-              {submitting ? 'Adding...' : 'Add'}
-            </Button>
-          </DialogActions>
-        </Dialog>
+            }} maxWidth="sm" fullWidth>
+              <DialogTitle>Add Reminder</DialogTitle>
+              <DialogContent>
+                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                <TextField
+                  select
+                  fullWidth
+                  label="Linked Prescription (optional)"
+                  value={selectedPrescriptionId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedPrescriptionId(val);
+                    if (val) {
+                      const p = prescriptionsList.find((x) => x.id === val);
+                      if (p) {
+                        setMedicationName(p.medicationName || '');
+                        setDosage(p.dosage || '');
+                      }
+                    } else {
+                      setMedicationName('');
+                      setDosage('');
+                    }
+                  }}
+                  margin="normal"
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {prescriptionsList.map((p) => (
+                    <MenuItem key={p.id} value={p.id}>{`${p.medicationName || 'Untitled'}${p.dosage ? ` - ${p.dosage}` : ''}`}</MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  fullWidth
+                  label="Medication Name"
+                  value={medicationName}
+                  onChange={(e) => setMedicationName(e.target.value)}
+                  margin="normal"
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Dosage (optional)"
+                  value={dosage}
+                  onChange={(e) => setDosage(e.target.value)}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="Scheduled Time"
+                  type="datetime-local"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  margin="normal"
+                  InputLabelProps={{ shrink: true }}
+                  required
+                />
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => {
+                  setOpenDialog(false);
+                  setError('');
+                }} disabled={submitting}>
+                  Cancel
+                </Button>
+                <Button variant="contained" onClick={handleAddReminder} disabled={submitting}>
+                  {submitting ? 'Adding...' : 'Add'}
+                </Button>
+              </DialogActions>
+            </Dialog>
 
-        {reminders.map((reminder) => (
-          <ReminderItem
-            key={reminder.id}
-            reminder={reminder}
-            onMarkTaken={handleMarkTaken}
-            onSnooze={handleSnooze}
-            onSkip={handleSkip}
-          />
-        ))}
-      </Box>
+            {reminders.map((reminder) => (
+              <ReminderItem
+                key={reminder.id}
+                reminder={reminder}
+                onMarkTaken={handleMarkTaken}
+                onSnooze={handleSnooze}
+                onSkip={handleSkip}
+              />
+            ))}
+          </Box>
+        </Grid>
+        <Grid item xs={12} lg={5}>
+          <MedicineChatbot />
+        </Grid>
+      </Grid>
     </Box>
   );
 }

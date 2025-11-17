@@ -8,7 +8,8 @@ import {
   reauthenticateWithCredential,
   updatePassword,
   deleteUser,
-  EmailAuthProvider
+  EmailAuthProvider,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { setDoc, doc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { ref, listAll, deleteObject } from 'firebase/storage';
@@ -38,6 +39,13 @@ export function AuthProvider({ children }) {
 
   function logout() {
     return signOut(auth);
+  }
+
+  function resetPassword(email) {
+    if (!email) {
+      return Promise.reject(new Error('Email is required'));
+    }
+    return sendPasswordResetEmail(auth, email);
   }
 
   async function changePassword(currentPwd, newPwd) {
@@ -104,6 +112,7 @@ export function AuthProvider({ children }) {
     signup,
     login,
     logout,
+    resetPassword,
     changePassword,
     deleteAccount
   };

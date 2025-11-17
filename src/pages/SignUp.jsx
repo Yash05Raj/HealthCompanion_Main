@@ -8,17 +8,21 @@ import {
   Link,
   Paper,
   Alert,
+  Stack,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
 function SignUp() {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,6 +40,26 @@ function SignUp() {
       setError('Failed to create an account. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setResetError('Enter the email associated with your account to reset your password.');
+      setResetSuccess('');
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+      setResetError('');
+      await resetPassword(email);
+      setResetSuccess('Password reset email sent. Please check your inbox.');
+    } catch (err) {
+      setResetSuccess('');
+      setResetError(err?.message || 'Unable to send reset email. Please ensure the email is registered.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -67,10 +91,24 @@ function SignUp() {
           </Typography>
         </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
+        {(error || resetError || resetSuccess) && (
+          <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {error && (
+              <Alert severity="error">
+                {error}
+              </Alert>
+            )}
+            {resetError && (
+              <Alert severity="warning">
+                {resetError}
+              </Alert>
+            )}
+            {resetSuccess && (
+              <Alert severity="success">
+                {resetSuccess}
+              </Alert>
+            )}
+          </Box>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -101,6 +139,23 @@ function SignUp() {
             required
             sx={{ mb: 3 }}
           />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Already have an account?{' '}
+              <Link component={RouterLink} to="/login">
+                Sign in
+              </Link>
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              onClick={handlePasswordReset}
+              disabled={resetLoading}
+              sx={{ textTransform: 'none', alignSelf: { xs: 'flex-start', sm: 'center' } }}
+            >
+              {resetLoading ? 'Sending...' : 'Forgot password?'}
+            </Button>
+          </Stack>
           <Button
             type="submit"
             variant="contained"
@@ -111,13 +166,6 @@ function SignUp() {
             Sign Up
           </Button>
         </form>
-
-        <Typography variant="body2" align="center">
-          Already have an account?{' '}
-          <Link component={RouterLink} to="/login">
-            Sign in
-          </Link>
-        </Typography>
       </Paper>
     </Box>
   );
