@@ -8,79 +8,13 @@ import {
   Divider,
   Chip,
   Stack,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
-
-const knowledgeBase = [
-  {
-    name: 'Ibuprofen',
-    aliases: ['advil', 'motrin'],
-    overview: 'A non-steroidal anti-inflammatory drug (NSAID) used to reduce fever and treat pain or inflammation.',
-    uses: ['Headaches & migraines', 'Muscle aches', 'Arthritis pain', 'Menstrual cramps'],
-    dosage: '200-400mg every 4-6 hours as needed. Do not exceed 1200mg in 24 hours without medical supervision.',
-    warnings: [
-      'Avoid if you have stomach ulcers, bleeding disorders, or severe kidney disease.',
-      'Take with food to reduce stomach irritation.',
-      'May interact with blood thinners or other NSAIDs.',
-    ],
-    sideEffects: ['Upset stomach', 'Dizziness', 'Fluid retention'],
-  },
-  {
-    name: 'Paracetamol',
-    aliases: ['acetaminophen', 'tylenol'],
-    overview: 'An analgesic and antipyretic used to treat mild to moderate pain and reduce fever.',
-    uses: ['Fever reduction', 'Headaches', 'Post-vaccination discomfort'],
-    dosage: '500-1000mg every 6 hours as needed. Maximum 4000mg in 24 hours (or 3000mg for chronic use).',
-    warnings: [
-      'Exceeding 4g per day can lead to severe liver damage.',
-      'Avoid combining with alcohol or other paracetamol-containing medications.',
-    ],
-    sideEffects: ['Rare, but may include rash or liver enzyme elevation with prolonged high doses.'],
-  },
-  {
-    name: 'Amoxicillin',
-    aliases: ['amoxil'],
-    overview: 'A penicillin-type antibiotic that fights bacterial infections.',
-    uses: ['Ear infections', 'Pneumonia', 'Urinary tract infections', 'Skin infections'],
-    dosage: '250-500mg every 8 hours or 500-875mg every 12 hours, depending on the infection.',
-    warnings: [
-      'Complete the full prescribed course even if you feel better.',
-      'May reduce effectiveness of oral contraceptives—use backup protection.',
-      'Not effective for viral infections like cold or flu.',
-    ],
-    sideEffects: ['Nausea', 'Diarrhea', 'Skin rash', 'Yeast infections'],
-  },
-  {
-    name: 'Metformin',
-    aliases: [],
-    overview: 'An oral medication for type 2 diabetes that improves insulin sensitivity and lowers glucose production.',
-    uses: ['Type 2 diabetes', 'Prediabetes management', 'Polycystic ovary syndrome (off-label)'],
-    dosage: '500mg once or twice daily with meals. Titrate up to 2000mg per day as tolerated.',
-    warnings: [
-      'Take with food to reduce gastrointestinal upset.',
-      'Rare risk of lactic acidosis—avoid with severe kidney or liver disease.',
-    ],
-    sideEffects: ['Diarrhea', 'Bloating', 'Metallic taste'],
-  },
-  {
-    name: 'Cetirizine',
-    aliases: ['zyrtec'],
-    overview: 'A second-generation antihistamine used for allergy relief.',
-    uses: ['Seasonal allergies', 'Chronic urticaria', 'Allergic rhinitis'],
-    dosage: '10mg once daily for adults. Children dosing varies by age/weight.',
-    warnings: ['Use caution with kidney impairment.', 'May cause mild drowsiness in some individuals.'],
-    sideEffects: ['Drowsiness', 'Dry mouth', 'Fatigue'],
-  },
-];
-
-const quickSuggestions = [
-  'Ibuprofen dosage',
-  'Paracetamol side effects',
-  'Amoxicillin precautions',
-  'Metformin instructions',
-  'Cetirizine uses',
-];
+import { useAuth } from '../contexts/AuthContext';
+import { fetchMedicines, searchMedicine } from '../services/medicineService';
 
 const formatResponse = (medicine) => {
   const sections = [
@@ -96,6 +30,7 @@ const formatResponse = (medicine) => {
 };
 
 const MedicineChatbot = () => {
+  const { currentUser } = useAuth();
   const [messages, setMessages] = useState([
     {
       role: 'bot',
@@ -103,7 +38,35 @@ const MedicineChatbot = () => {
     },
   ]);
   const [input, setInput] = useState('');
+  const [knowledgeBase, setKnowledgeBase] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
+
+  // Fetch medicines from Firestore on component mount
+  useEffect(() => {
+    const loadMedicines = async () => {
+      if (!currentUser) {
+        setError('Please log in to use the medicine chatbot.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const medicines = await fetchMedicines();
+        setKnowledgeBase(medicines);
+        setError('');
+      } catch (err) {
+        console.error('Error loading medicines:', err);
+        setError('Failed to load medicine database. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMedicines();
+  }, [currentUser]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -111,25 +74,61 @@ const MedicineChatbot = () => {
     }
   }, [messages]);
 
+  // Generate quick suggestions from available medicines
+  const quickSuggestions = useMemo(() => {
+    if (knowledgeBase.length === 0) {
+      return [
+        'Ibuprofen dosage',
+        'Paracetamol side effects',
+        'Amoxicillin precautions',
+        'Metformin instructions',
+        'Cetirizine uses',
+      ];
+    }
+    const meds = knowledgeBase.slice(0, 5);
+    return [
+      `${meds[0]?.name || 'Ibuprofen'} dosage`,
+      `${meds[1]?.name || 'Paracetamol'} side effects`,
+      `${meds[2]?.name || 'Amoxicillin'} precautions`,
+      `${meds[3]?.name || 'Metformin'} instructions`,
+      `${meds[4]?.name || 'Cetirizine'} uses`,
+    ];
+  }, [knowledgeBase]);
+
   const matcher = useMemo(
     () => (query) => {
       const normalized = query.trim().toLowerCase();
-      if (!normalized) return null;
-      return knowledgeBase.find((med) =>
-        [med.name, ...med.aliases].some((alias) => normalized.includes(alias.toLowerCase()))
-      );
+      if (!normalized || knowledgeBase.length === 0) return null;
+      return knowledgeBase.find((med) => {
+        const nameMatch = med.name.toLowerCase().includes(normalized);
+        const aliasMatch = med.aliases?.some((alias) =>
+          normalized.includes(alias.toLowerCase())
+        );
+        return nameMatch || aliasMatch;
+      });
     },
-    []
+    [knowledgeBase]
   );
 
-  const handleSend = (value) => {
+  const handleSend = async (value) => {
     const trimmed = value.trim();
     if (!trimmed) return;
 
     const userMessage = { role: 'user', text: trimmed };
     setMessages((prev) => [...prev, userMessage]);
 
-    const match = matcher(trimmed);
+    // Try to find medicine in local knowledge base first
+    let match = matcher(trimmed);
+    
+    // If not found locally, try searching in Firestore (for async search)
+    if (!match && knowledgeBase.length > 0) {
+      try {
+        match = await searchMedicine(trimmed);
+      } catch (err) {
+        console.error('Error searching medicine:', err);
+      }
+    }
+
     const botMessage = match
       ? {
           role: 'bot',
@@ -137,8 +136,9 @@ const MedicineChatbot = () => {
         }
       : {
           role: 'bot',
-          text:
-            'I could not find detailed data for that medicine. Please double-check the spelling or ask about Ibuprofen, Paracetamol, Amoxicillin, Metformin, or Cetirizine. For urgent questions, consult a healthcare professional.',
+          text: knowledgeBase.length > 0
+            ? `I could not find detailed data for that medicine. Please double-check the spelling. For urgent questions, consult a healthcare professional.`
+            : 'Medicine database is loading. Please try again in a moment.',
         };
 
     setMessages((prev) => [...prev, botMessage]);
@@ -174,17 +174,34 @@ const MedicineChatbot = () => {
       </Typography>
       <Divider sx={{ mb: 2 }} />
 
-      <Stack direction="row" flexWrap="wrap" spacing={1} sx={{ mb: 2, gap: 1 }}>
-        {quickSuggestions.map((suggestion) => (
-          <Chip
-            key={suggestion}
-            label={suggestion}
-            onClick={() => handleSend(suggestion)}
-            size="small"
-            sx={{ backgroundColor: '#E8F0FE', color: '#0A4B94', fontWeight: 500 }}
-          />
-        ))}
-      </Stack>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 3 }}>
+          <CircularProgress size={24} />
+          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+            Loading medicine database...
+          </Typography>
+        </Box>
+      )}
+
+      {!loading && !error && (
+        <Stack direction="row" flexWrap="wrap" spacing={1} sx={{ mb: 2, gap: 1 }}>
+          {quickSuggestions.map((suggestion) => (
+            <Chip
+              key={suggestion}
+              label={suggestion}
+              onClick={() => handleSend(suggestion)}
+              size="small"
+              sx={{ backgroundColor: '#E8F0FE', color: '#0A4B94', fontWeight: 500 }}
+            />
+          ))}
+        </Stack>
+      )}
 
       <Box
         sx={{
