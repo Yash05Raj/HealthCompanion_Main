@@ -56,10 +56,17 @@ const MedicineChatbot = () => {
         setLoading(true);
         const medicines = await fetchMedicines();
         setKnowledgeBase(medicines);
+        // Don't show error if collection is empty - FDA API will handle searches
+        if (medicines.length === 0) {
+          console.log('No cached medicines found. FDA API will be used for searches.');
+        }
         setError('');
       } catch (err) {
         console.error('Error loading medicines:', err);
-        setError('Failed to load medicine database. Please try again later.');
+        // Don't block the UI - FDA API can still work
+        setKnowledgeBase([]);
+        setError('');
+        console.log('Continuing without cache - FDA API will be used for searches.');
       } finally {
         setLoading(false);
       }

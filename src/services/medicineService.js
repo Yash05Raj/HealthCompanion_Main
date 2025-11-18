@@ -9,8 +9,18 @@ import { searchFDA } from './fdaService';
 export const fetchMedicines = async () => {
   try {
     const medicinesRef = collection(db, 'medicines');
-    const q = query(medicinesRef, orderBy('name'));
-    const querySnapshot = await getDocs(q);
+    
+    // Try with orderBy first, but fallback to simple query if index doesn't exist
+    let querySnapshot;
+    try {
+      const q = query(medicinesRef, orderBy('name'));
+      querySnapshot = await getDocs(q);
+    } catch (orderError) {
+      // If orderBy fails (no index or empty collection), try without orderBy
+      console.warn('orderBy failed, trying without order:', orderError);
+      querySnapshot = await getDocs(medicinesRef);
+    }
+    
     const medicines = [];
     
     querySnapshot.forEach((doc) => {
@@ -19,8 +29,14 @@ export const fetchMedicines = async () => {
     
     return medicines;
   } catch (error) {
+    // If collection doesn't exist or permission denied, return empty array
+    if (error.code === 'permission-denied' || error.code === 'not-found') {
+      console.warn('Medicines collection not accessible, returning empty array:', error);
+      return [];
+    }
     console.error('Error fetching medicines:', error);
-    throw error;
+    // Return empty array instead of throwing - allows FDA API to still work
+    return [];
   }
 };
 
@@ -60,21 +76,46 @@ export const searchMedicine = async (searchTerm) => {
     
     if (!normalized) return null;
 
-    // Step 1: Search in Firestore cache first (fast)
-    const medicines = await fetchMedicines();
-    const cachedMatch = medicines.find((med) => {
-      const nameMatch = med.name.toLowerCase().includes(normalized) ||
-                       normalized.includes(med.name.toLowerCase());
-      const aliasMatch = med.aliases?.some((alias) =>
-        normalized.includes(alias.toLowerCase()) ||
-        alias.toLowerCase().includes(normalized)
-      );
-      return nameMatch || aliasMatch;
-    });
+    // Step 1: Try to search in Firestore cache first (fast, but optional)
+    let medicines = [];
+    try {
+      medicines = await fetchMedicines();
+      
+      const cachedMatch = medicines.find((med) => {
+        const nameMatch = med.name.toLowerCase().includes(normalized) ||
+                         normalized.includes(med.name.toLowerCase());
+        const aliasMatch = med.aliases?.some((alias) =>
+          normalized.includes(alias.toLowerCase()) ||
+          alias.toLowerCase().includes(normalized)
+        );
+        return nameMatch || aliasMatch;
+      });
 
-    if (cachedMatch) {
-      console.log(`Found in cache: ${cachedMatch.name}`);
-      return cachedMatch;
+      if (cachedMatch) {
+        console.log(`Found in cache: ${cachedMatch.name}`);
+        return cachedMatch;
+      }
+
+      // Try fuzzy search in Firestore (partial matches)
+      const fuzzyMatch = medicines.find((med) => {
+        const name = med.name.toLowerCase();
+        const searchLower = normalized.toLowerCase();
+        
+        // Check if search term is part of medicine name or vice versa
+        return name.includes(searchLower) || searchLower.includes(name) ||
+               med.aliases?.some(alias => 
+                 alias.toLowerCase().includes(searchLower) || 
+                 searchLower.includes(alias.toLowerCase())
+               );
+      });
+
+      if (fuzzyMatch) {
+        console.log(`Found via fuzzy match: ${fuzzyMatch.name}`);
+        return fuzzyMatch;
+      }
+    } catch (cacheError) {
+      console.warn('Cache search failed, proceeding to FDA API:', cacheError);
+      // Continue to FDA API search even if cache fails
     }
 
     // Step 2: If not found in cache, search FDA API
@@ -82,28 +123,14 @@ export const searchMedicine = async (searchTerm) => {
     const fdaResult = await searchFDA(searchTerm);
     
     if (fdaResult) {
-      // Cache the result for future use
-      await cacheMedicine(fdaResult);
+      // Cache the result for future use (don't fail if caching fails)
+      try {
+        await cacheMedicine(fdaResult);
+      } catch (cacheError) {
+        console.warn('Failed to cache medicine, but returning result:', cacheError);
+      }
       console.log(`Found via FDA API: ${fdaResult.name}`);
       return fdaResult;
-    }
-
-    // Step 3: Try fuzzy search in Firestore (partial matches)
-    const fuzzyMatch = medicines.find((med) => {
-      const name = med.name.toLowerCase();
-      const searchLower = normalized.toLowerCase();
-      
-      // Check if search term is part of medicine name or vice versa
-      return name.includes(searchLower) || searchLower.includes(name) ||
-             med.aliases?.some(alias => 
-               alias.toLowerCase().includes(searchLower) || 
-               searchLower.includes(alias.toLowerCase())
-             );
-    });
-
-    if (fuzzyMatch) {
-      console.log(`Found via fuzzy match: ${fuzzyMatch.name}`);
-      return fuzzyMatch;
     }
 
     return null;

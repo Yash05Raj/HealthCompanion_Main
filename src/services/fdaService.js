@@ -186,18 +186,35 @@ export const searchFDA = async (searchTerm) => {
   }
 
   const normalized = searchTerm.trim();
+  const searchLower = normalized.toLowerCase();
   
-  // Try brand name first (most common)
-  let result = await searchFDAByBrandName(normalized);
-  if (result) return result;
+  // Map common medicine names to FDA search terms
+  const medicineMappings = {
+    'paracetamol': 'acetaminophen',
+    'tylenol': 'acetaminophen',
+    'panadol': 'acetaminophen',
+  };
+  
+  // Get alternative search terms
+  const searchTerms = [normalized];
+  if (medicineMappings[searchLower]) {
+    searchTerms.push(medicineMappings[searchLower]);
+  }
+  
+  // Try each search term
+  for (const term of searchTerms) {
+    // Try brand name first (most common)
+    let result = await searchFDAByBrandName(term);
+    if (result) return result;
 
-  // Try generic name
-  result = await searchFDAByGenericName(normalized);
-  if (result) return result;
+    // Try generic name
+    result = await searchFDAByGenericName(term);
+    if (result) return result;
 
-  // Try active ingredient
-  result = await searchFDAByActiveIngredient(normalized);
-  if (result) return result;
+    // Try active ingredient
+    result = await searchFDAByActiveIngredient(term);
+    if (result) return result;
+  }
 
   // Try partial match with brand name
   try {
@@ -224,6 +241,35 @@ export const searchFDA = async (searchTerm) => {
     }
   } catch (error) {
     console.error('Error in partial FDA search:', error);
+  }
+
+  // Try searching by any field (broader search)
+  try {
+    const encodedTerm = encodeURIComponent(normalized);
+    const url = `https://api.fda.gov/drug/label.json?search="${encodedTerm}"&limit=5`;
+    const response = await fetch(url);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.results && data.results.length > 0) {
+        // Find best match by checking all name fields
+        const bestMatch = data.results.find(drug => {
+          const allNames = [
+            ...(drug.brand_name || []),
+            ...(drug.generic_name || []),
+            ...(drug.openfda?.brand_name || []),
+            ...(drug.openfda?.generic_name || [])
+          ];
+          return allNames.some(name => 
+            name && name.toLowerCase().includes(normalized.toLowerCase())
+          );
+        }) || data.results[0];
+        
+        return transformFDAData(bestMatch);
+      }
+    }
+  } catch (error) {
+    console.error('Error in broad FDA search:', error);
   }
 
   return null;
