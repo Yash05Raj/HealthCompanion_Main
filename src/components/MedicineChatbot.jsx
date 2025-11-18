@@ -117,32 +117,52 @@ const MedicineChatbot = () => {
     const userMessage = { role: 'user', text: trimmed };
     setMessages((prev) => [...prev, userMessage]);
 
-    // Try to find medicine in local knowledge base first
-    let match = matcher(trimmed);
-    
-    // If not found locally, try searching in Firestore (for async search)
-    if (!match && knowledgeBase.length > 0) {
-      try {
-        match = await searchMedicine(trimmed);
-      } catch (err) {
-        console.error('Error searching medicine:', err);
-      }
-    }
+    // Show loading message
+    const loadingMessage = {
+      role: 'bot',
+      text: 'Searching for medicine information...',
+    };
+    setMessages((prev) => [...prev, loadingMessage]);
 
-    const botMessage = match
-      ? {
-          role: 'bot',
-          text: `Medicine: ${match.name}\n${formatResponse(match)}`,
+    try {
+      // Try to find medicine in local knowledge base first (fast)
+      let match = matcher(trimmed);
+      
+      // If not found locally, search using the service (checks Firestore cache, then FDA API)
+      if (!match) {
+        try {
+          match = await searchMedicine(trimmed);
+        } catch (err) {
+          console.error('Error searching medicine:', err);
         }
-      : {
-          role: 'bot',
-          text: knowledgeBase.length > 0
-            ? `I could not find detailed data for that medicine. Please double-check the spelling. For urgent questions, consult a healthcare professional.`
-            : 'Medicine database is loading. Please try again in a moment.',
-        };
+      }
 
-    setMessages((prev) => [...prev, botMessage]);
-    setInput('');
+      // Remove loading message
+      setMessages((prev) => prev.slice(0, -1));
+
+      const botMessage = match
+        ? {
+            role: 'bot',
+            text: `Medicine: ${match.name}${match.source === 'FDA' ? ' (via FDA)' : ''}\n${formatResponse(match)}`,
+          }
+        : {
+            role: 'bot',
+            text: `I could not find detailed data for "${trimmed}". Please try:\n• Checking the spelling\n• Using the generic or brand name\n• Asking about a different medicine\n\nFor urgent medical questions, please consult a healthcare professional.`,
+          };
+
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      // Remove loading message
+      setMessages((prev) => prev.slice(0, -1));
+      
+      const errorMessage = {
+        role: 'bot',
+        text: 'Sorry, I encountered an error while searching. Please try again or consult a healthcare professional for urgent questions.',
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setInput('');
+    }
   };
 
   const handleSubmit = (e) => {

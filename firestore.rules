@@ -38,10 +38,14 @@ service cloud.firestore {
     
     // Medicines collection - public read access for all authenticated users
     // This is reference data for the chatbot, so all users can read it
+    // Writes allowed for caching FDA API results
     match /medicines/{medicineId} {
       allow read: if request.auth != null;
-      // Only allow writes from admin (you can restrict this further if needed)
-      allow write: if false; // Disable writes via client - use admin SDK or Firebase Console
+      // Allow authenticated users to cache FDA API results
+      allow create: if request.auth != null && 
+        request.resource.data.source == 'FDA';
+      // Disable updates and deletes via client
+      allow update, delete: if false;
     }
   }
 }
