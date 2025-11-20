@@ -13,11 +13,13 @@ import {
 } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
 import EmailIcon from '@mui/icons-material/Email';
+import PersonIcon from '@mui/icons-material/Person';
 import { useAuth } from '../contexts/AuthContext';
 
 function SignUp() {
   const navigate = useNavigate();
   const { signup, signInWithGoogle, resetPassword } = useAuth();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -37,7 +39,7 @@ function SignUp() {
     } catch (error) {
       console.error('Google sign-up error:', error);
       let errorMessage = 'Failed to sign up with Google. Please try again.';
-      
+
       if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = 'Sign-up popup was closed. Please try again.';
       } else if (error.code === 'auth/popup-blocked') {
@@ -45,7 +47,7 @@ function SignUp() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setGoogleLoading(false);
@@ -54,6 +56,10 @@ function SignUp() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!name.trim()) {
+      return setError('Please enter your full name');
+    }
 
     if (password !== confirmPassword) {
       return setError('Passwords do not match');
@@ -66,13 +72,12 @@ function SignUp() {
     try {
       setError('');
       setLoading(true);
-      await signup(email, password);
+      await signup(email, password, name.trim());
       navigate('/');
     } catch (error) {
       console.error('Signup error:', error);
       let errorMessage = 'Failed to create an account. Please try again.';
-      
-      // Provide more specific error messages
+
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'This email is already registered. Please sign in instead.';
       } else if (error.code === 'auth/invalid-email') {
@@ -86,7 +91,7 @@ function SignUp() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -128,8 +133,9 @@ function SignUp() {
         sx={{
           p: 4,
           width: '100%',
-          maxWidth: 400,
+          maxWidth: 420,
           border: '1px solid #E5E9F0',
+          borderRadius: 3,
         }}
       >
         <Box sx={{ mb: 4, textAlign: 'center' }}>
@@ -144,17 +150,17 @@ function SignUp() {
         {(error || resetError || resetSuccess) && (
           <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
             {error && (
-              <Alert severity="error">
+              <Alert severity="error" sx={{ borderRadius: 2 }}>
                 {error}
               </Alert>
             )}
             {resetError && (
-              <Alert severity="warning">
+              <Alert severity="warning" sx={{ borderRadius: 2 }}>
                 {resetError}
               </Alert>
             )}
             {resetSuccess && (
-              <Alert severity="success">
+              <Alert severity="success" sx={{ borderRadius: 2 }}>
                 {resetSuccess}
               </Alert>
             )}
@@ -177,6 +183,9 @@ function SignUp() {
             py: 1.5,
             fontSize: '1rem',
             fontWeight: 500,
+            borderRadius: 2,
+            textTransform: 'none',
+            boxShadow: 'none',
           }}
         >
           {googleLoading ? 'Signing up...' : 'Continue with Google'}
@@ -195,6 +204,17 @@ function SignUp() {
         <form onSubmit={handleSubmit}>
           <TextField
             fullWidth
+            label="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+            }}
+          />
+          <TextField
+            fullWidth
             label="Email Address"
             type="email"
             value={email}
@@ -210,6 +230,7 @@ function SignUp() {
             onChange={(e) => setPassword(e.target.value)}
             required
             sx={{ mb: 2 }}
+            helperText="At least 6 characters"
           />
           <TextField
             fullWidth
@@ -243,7 +264,13 @@ function SignUp() {
             fullWidth
             disabled={loading || googleLoading}
             startIcon={<EmailIcon />}
-            sx={{ mb: 2 }}
+            sx={{
+              mb: 2,
+              py: 1.2,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 500,
+            }}
           >
             {loading ? 'Creating account...' : 'Sign Up with Email'}
           </Button>

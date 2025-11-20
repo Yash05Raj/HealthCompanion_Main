@@ -41,9 +41,8 @@ service cloud.firestore {
     // Writes allowed for caching FDA API results
     match /medicines/{medicineId} {
       allow read: if request.auth != null;
-      // Allow authenticated users to cache FDA API results
-      allow create: if request.auth != null && 
-        request.resource.data.source == 'FDA';
+      // Allow authenticated users to cache medicines (removed source restriction)
+      allow create: if request.auth != null;
       // Disable updates and deletes via client
       allow update, delete: if false;
     }

@@ -21,12 +21,16 @@ import {
   FilterList as FilterIcon,
   MoreVert as MoreVertIcon,
   CloudUpload as CloudUploadIcon,
+  CloudDone as CloudDoneIcon,
+  CloudOff as CloudOffIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { db } from '../firebase';
-import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '../firebase';
+import {
+  getPrescriptions,
+  addPrescription,
+  deletePrescription,
+  getSyncStatus
+} from '../services/storageService';
 import MedicineChatbot from '../components/MedicineChatbot';
 
 const PrescriptionCard = ({ prescription, onDelete, onDownload }) => (
@@ -41,9 +45,29 @@ const PrescriptionCard = ({ prescription, onDelete, onDownload }) => (
     <CardContent>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-            {prescription.medicationName}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              {prescription.medicationName}
+            </Typography>
+            {prescription.syncStatus === 'pending' && (
+              <Chip
+                label="Syncing..."
+                size="small"
+                color="warning"
+                sx={{ height: 20, fontSize: '0.7rem' }}
+              />
+            )}
+            {prescription.syncStatus === 'synced' && (
+              <CloudDoneIcon sx={{ fontSize: 18, color: 'success.main' }} />
+            )}
+            {prescription.localOnly && (
+              <Chip
+                label="Local"
+                size="small"
+                sx={{ height: 20, fontSize: '0.7rem', bgcolor: '#E8F0FE' }}
+              />
+            )}
+          </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {prescription.dosage}
           </Typography>
@@ -56,9 +80,6 @@ const PrescriptionCard = ({ prescription, onDelete, onDownload }) => (
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button variant="outlined" size="small">
-              View Details
-            </Button>
             <Button
               variant="outlined"
               size="small"
@@ -107,36 +128,35 @@ function Prescriptions() {
   const [error, setError] = useState('');
   const [instructions, setInstructions] = useState('');
   const [loading, setLoading] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(null);
 
+  // Fetch prescriptions on mount and set up sync status polling
   useEffect(() => {
-    const fetchPrescriptions = async () => {
+    const fetchData = async () => {
       if (!currentUser) return;
 
       try {
-        const prescriptionsRef = collection(db, 'prescriptions');
-        const q = query(prescriptionsRef, where('userId', '==', currentUser.uid));
-        const querySnapshot = await getDocs(q);
-        const prescriptionsList = [];
-        querySnapshot.forEach((doc) => {
-          prescriptionsList.push({ id: doc.id, ...doc.data() });
-        });
-        setPrescriptions(prescriptionsList);
+        const data = await getPrescriptions(currentUser.uid);
+        setPrescriptions(data);
       } catch (error) {
         console.error('Error fetching prescriptions:', error);
       }
     };
 
-    fetchPrescriptions();
+    fetchData();
+
+    // Poll sync status every 5 seconds
+    const interval = setInterval(() => {
+      const status = getSyncStatus();
+      setSyncStatus(status);
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [currentUser]);
 
   const handleDelete = async (id) => {
     try {
-      const prescription = prescriptions.find(p => p.id === id);
-      if (prescription?.filePath) {
-        const fileRef = ref(storage, prescription.filePath);
-        await deleteObject(fileRef);
-      }
-      await deleteDoc(doc(db, 'prescriptions', id));
+      await deletePrescription(currentUser.uid, id);
       setPrescriptions(prescriptions.filter(p => p.id !== id));
     } catch (error) {
       console.error('Error deleting prescription:', error);
@@ -146,7 +166,17 @@ function Prescriptions() {
 
   const handleDownload = (prescription) => {
     if (prescription.fileURL) {
-      window.open(prescription.fileURL, '_blank');
+      // For local storage, fileURL is base64 data
+      if (prescription.fileURL.startsWith('data:')) {
+        // Create a download link for base64 data
+        const link = document.createElement('a');
+        link.href = prescription.fileURL;
+        link.download = prescription.fileName || 'prescription';
+        link.click();
+      } else {
+        // For Firebase URLs, open in new tab
+        window.open(prescription.fileURL, '_blank');
+      }
     }
   };
 
@@ -172,11 +202,6 @@ function Prescriptions() {
       setLoading(true);
       setError('');
 
-      // Debug logging
-      console.log('Current User:', currentUser);
-      console.log('User ID:', currentUser?.uid);
-      console.log('Is Authenticated:', !!currentUser);
-
       // Validate file type and size
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       if (!allowedTypes.includes(selectedFile.type)) {
@@ -184,35 +209,29 @@ function Prescriptions() {
         setLoading(false);
         return;
       }
-      
+
       if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
         setError('File size must be less than 5MB');
         setLoading(false);
         return;
       }
 
-      const filePath = `prescriptions/${currentUser.uid}/${Date.now()}_${selectedFile.name}`;
-      const fileRef = ref(storage, filePath);
-      await uploadBytes(fileRef, selectedFile);
-      const fileURL = await getDownloadURL(fileRef);
-
       const prescriptionData = {
-        userId: currentUser.uid,
         medicationName,
         dosage,
         prescribedBy,
         instructions,
-        dateAdded: new Date().toLocaleDateString(),
-        fileURL,
-        filePath,
-        fileName: selectedFile.name,
-        uploadDate: new Date().toISOString(),
         status: 'active'
       };
 
-      const docRef = await addDoc(collection(db, 'prescriptions'), prescriptionData);
-      setPrescriptions([...prescriptions, { id: docRef.id, ...prescriptionData }]);
-      
+      const newPrescription = await addPrescription(
+        currentUser.uid,
+        prescriptionData,
+        selectedFile
+      );
+
+      setPrescriptions([...prescriptions, newPrescription]);
+
       setOpenDialog(false);
       setSelectedFile(null);
       setMedicationName('');
@@ -241,9 +260,27 @@ function Prescriptions() {
               <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
                 Prescriptions
               </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Manage your digital prescription records
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body1" color="text.secondary">
+                  Manage your digital prescription records
+                </Typography>
+                {syncStatus && (
+                  <Chip
+                    icon={syncStatus.online ? <CloudDoneIcon /> : <CloudOffIcon />}
+                    label={syncStatus.online ? 'Online' : 'Offline'}
+                    size="small"
+                    color={syncStatus.online ? 'success' : 'default'}
+                    sx={{ ml: 1 }}
+                  />
+                )}
+                {syncStatus && syncStatus.totalPending > 0 && (
+                  <Chip
+                    label={`${syncStatus.totalPending} pending sync`}
+                    size="small"
+                    color="warning"
+                  />
+                )}
+              </Box>
             </Box>
             <Button
               variant="contained"
