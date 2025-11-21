@@ -21,6 +21,7 @@ import {
   Security as SecurityIcon,
   PrivacyTip as PrivacyIcon,
   Logout as LogoutIcon,
+  LocalHospital as MedicalIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -58,18 +59,26 @@ function Sidebar() {
         },
       }}
     >
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Box
-          component="img"
-          src="/logo.svg"
-          alt="Health Companion"
-          sx={{ width: 32, height: 32 }}
-        />
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: 3,
+            backgroundColor: '#0A4B94',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(10, 75, 148, 0.2)',
+          }}
+        >
+          <MedicalIcon sx={{ color: '#FFFFFF', fontSize: 24 }} />
+        </Box>
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#0A4B94' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0A4B94', lineHeight: 1.2 }}>
             Health Companion
           </Typography>
-          <Typography variant="caption" sx={{ color: '#6B7280' }}>
+          <Typography variant="caption" sx={{ color: '#6B7280', fontWeight: 500 }}>
             Healthcare Manager
           </Typography>
         </Box>
@@ -78,7 +87,7 @@ function Sidebar() {
       <Box sx={{ overflow: 'auto', flex: 1 }}>
         <Typography
           variant="overline"
-          sx={{ px: 3, py: 1, display: 'block', color: '#6B7280' }}
+          sx={{ px: 3, py: 1, display: 'block', color: '#6B7280', fontWeight: 600, fontSize: '0.7rem' }}
         >
           Healthcare
         </Typography>
@@ -92,15 +101,21 @@ function Sidebar() {
                   navigate(item.path);
                 }}
                 sx={{
+                  mx: 1,
+                  borderRadius: 2,
+                  mb: 0.5,
                   '&.Mui-selected': {
                     backgroundColor: '#E8F0FE',
                     '&:hover': {
                       backgroundColor: '#E8F0FE',
                     },
                   },
+                  '&:hover': {
+                    backgroundColor: '#F3F4F6',
+                  },
                 }}
               >
-                <ListItemIcon sx={{ color: location.pathname === item.path ? '#0A4B94' : '#6B7280' }}>
+                <ListItemIcon sx={{ minWidth: 40, color: location.pathname === item.path ? '#0A4B94' : '#6B7280' }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
@@ -108,7 +123,8 @@ function Sidebar() {
                   sx={{
                     '& .MuiListItemText-primary': {
                       color: location.pathname === item.path ? '#0A4B94' : '#374151',
-                      fontWeight: location.pathname === item.path ? 600 : 400,
+                      fontWeight: location.pathname === item.path ? 600 : 500,
+                      fontSize: '0.95rem',
                     },
                   }}
                 />
@@ -119,7 +135,7 @@ function Sidebar() {
 
         <Typography
           variant="overline"
-          sx={{ px: 3, py: 1, display: 'block', color: '#6B7280', mt: 2 }}
+          sx={{ px: 3, py: 1, display: 'block', color: '#6B7280', mt: 2, fontWeight: 600, fontSize: '0.7rem' }}
         >
           Account
         </Typography>
@@ -136,27 +152,40 @@ function Sidebar() {
                     navigate(item.path);
                   }
                 }}
+                sx={{
+                  mx: 1,
+                  borderRadius: 2,
+                  mb: 0.5,
+                  '&:hover': {
+                    backgroundColor: '#F3F4F6',
+                  },
+                }}
               >
-                <ListItemIcon sx={{ color: '#6B7280' }}>{item.icon}</ListItemIcon>
+                <ListItemIcon sx={{ minWidth: 40, color: '#6B7280' }}>{item.icon}</ListItemIcon>
                 <ListItemText
                   primary={item.text}
-                  sx={{ '& .MuiListItemText-primary': { color: '#374151' } }}
+                  sx={{ '& .MuiListItemText-primary': { color: '#374151', fontWeight: 500, fontSize: '0.95rem' } }}
                 />
               </ListItemButton>
             </ListItem>
           ))}
         </List>
 
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 2, mx: 2 }} />
 
         <ListItem disablePadding>
-          <ListItemButton>
-            <ListItemIcon sx={{ color: '#6B7280' }}>
+          <ListItemButton
+            sx={{
+              mx: 1,
+              borderRadius: 2,
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40, color: '#059669' }}>
               <SecurityIcon />
             </ListItemIcon>
             <ListItemText
               primary="Secure & HIPAA Compliant"
-              sx={{ '& .MuiListItemText-primary': { color: '#374151' } }}
+              sx={{ '& .MuiListItemText-primary': { color: '#059669', fontWeight: 600, fontSize: '0.85rem' } }}
             />
           </ListItemButton>
         </ListItem>

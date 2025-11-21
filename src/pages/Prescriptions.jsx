@@ -23,6 +23,7 @@ import {
   CloudUpload as CloudUploadIcon,
   CloudDone as CloudDoneIcon,
   CloudOff as CloudOffIcon,
+  Description as DescriptionIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -39,14 +40,20 @@ const PrescriptionCard = ({ prescription, onDelete, onDownload }) => (
     sx={{
       mb: 2,
       border: '1px solid #E5E9F0',
-      borderRadius: 2,
+      borderRadius: 3,
+      transition: 'all 0.2s ease',
+      '&:hover': {
+        borderColor: '#D1D5DB',
+        transform: 'translateY(-2px)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+      },
     }}
   >
     <CardContent>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#111827' }}>
               {prescription.medicationName}
             </Typography>
             {prescription.syncStatus === 'pending' && (
@@ -84,6 +91,7 @@ const PrescriptionCard = ({ prescription, onDelete, onDownload }) => (
               variant="outlined"
               size="small"
               onClick={() => onDownload(prescription)}
+              sx={{ textTransform: 'none', borderRadius: 2 }}
             >
               Download
             </Button>
@@ -92,6 +100,7 @@ const PrescriptionCard = ({ prescription, onDelete, onDownload }) => (
               size="small"
               color="error"
               onClick={() => onDelete(prescription.id)}
+              sx={{ textTransform: 'none', borderRadius: 2 }}
             >
               Delete
             </Button>
@@ -104,7 +113,8 @@ const PrescriptionCard = ({ prescription, onDelete, onDownload }) => (
             sx={{
               backgroundColor: '#E8F0FE',
               color: '#0A4B94',
-              fontWeight: 500,
+              fontWeight: 600,
+              borderRadius: 1,
             }}
           />
           <IconButton size="small">
@@ -130,7 +140,6 @@ function Prescriptions() {
   const [loading, setLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState(null);
 
-  // Fetch prescriptions on mount and set up sync status polling
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser) return;
@@ -145,7 +154,6 @@ function Prescriptions() {
 
     fetchData();
 
-    // Poll sync status every 5 seconds
     const interval = setInterval(() => {
       const status = getSyncStatus();
       setSyncStatus(status);
@@ -166,15 +174,12 @@ function Prescriptions() {
 
   const handleDownload = (prescription) => {
     if (prescription.fileURL) {
-      // For local storage, fileURL is base64 data
       if (prescription.fileURL.startsWith('data:')) {
-        // Create a download link for base64 data
         const link = document.createElement('a');
         link.href = prescription.fileURL;
         link.download = prescription.fileName || 'prescription';
         link.click();
       } else {
-        // For Firebase URLs, open in new tab
         window.open(prescription.fileURL, '_blank');
       }
     }
@@ -202,7 +207,6 @@ function Prescriptions() {
       setLoading(true);
       setError('');
 
-      // Validate file type and size
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       if (!allowedTypes.includes(selectedFile.type)) {
         setError('Please upload a PDF or image file (JPEG, PNG)');
@@ -210,7 +214,7 @@ function Prescriptions() {
         return;
       }
 
-      if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
+      if (selectedFile.size > 5 * 1024 * 1024) {
         setError('File size must be less than 5MB');
         setLoading(false);
         return;
@@ -252,128 +256,163 @@ function Prescriptions() {
   );
 
   return (
-    <Box sx={{ py: 4 }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12} lg={7}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-                Prescriptions
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body1" color="text.secondary">
-                  Manage your digital prescription records
-                </Typography>
-                {syncStatus && (
-                  <Chip
-                    icon={syncStatus.online ? <CloudDoneIcon /> : <CloudOffIcon />}
-                    label={syncStatus.online ? 'Online' : 'Offline'}
-                    size="small"
-                    color={syncStatus.online ? 'success' : 'default'}
-                    sx={{ ml: 1 }}
-                  />
-                )}
-                {syncStatus && syncStatus.totalPending > 0 && (
-                  <Chip
-                    label={`${syncStatus.totalPending} pending sync`}
-                    size="small"
-                    color="warning"
-                  />
-                )}
-              </Box>
-            </Box>
-            <Button
-              variant="contained"
-              startIcon={<CloudUploadIcon />}
-              sx={{ textTransform: 'none' }}
-              onClick={() => {
-                setError('');
-                setSelectedFile(null);
-                setMedicationName('');
-                setDosage('');
-                setPrescribedBy('');
-                setInstructions('');
-                setOpenDialog(true);
-              }}
-            >
-              Add New
-            </Button>
+    <Box sx={{ p: 4 }}>
+      {/* Header Section - Moved outside Grid for full width */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 5 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: '#111827' }}>
+            Prescriptions
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body1" color="text.secondary">
+              Manage your digital prescription records
+            </Typography>
+            {syncStatus && (
+              <Chip
+                icon={syncStatus.online ? <CloudDoneIcon /> : <CloudOffIcon />}
+                label={syncStatus.online ? 'Online' : 'Offline'}
+                size="small"
+                color={syncStatus.online ? 'success' : 'default'}
+                sx={{ ml: 1 }}
+              />
+            )}
+            {syncStatus && syncStatus.totalPending > 0 && (
+              <Chip
+                label={`${syncStatus.totalPending} pending sync`}
+                size="small"
+                color="warning"
+              />
+            )}
+          </Box>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<CloudUploadIcon />}
+          sx={{
+            textTransform: 'none',
+            px: 3,
+            py: 1.2,
+            borderRadius: 2,
+            backgroundColor: '#0A4B94',
+            fontWeight: 600,
+            boxShadow: '0 4px 12px rgba(10, 75, 148, 0.2)',
+            '&:hover': {
+              backgroundColor: '#083A75',
+              boxShadow: '0 6px 16px rgba(10, 75, 148, 0.3)',
+              transform: 'translateY(-1px)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+          onClick={() => {
+            setError('');
+            setSelectedFile(null);
+            setMedicationName('');
+            setDosage('');
+            setPrescribedBy('');
+            setInstructions('');
+            setOpenDialog(true);
+          }}
+        >
+          Add New
+        </Button>
 
-            <Dialog open={openDialog} onClose={() => {
+        <Dialog open={openDialog} onClose={() => {
+          setOpenDialog(false);
+          setError('');
+        }} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ pb: 1 }}>Add New Prescription</DialogTitle>
+          <DialogContent>
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            <TextField
+              fullWidth
+              label="Medication Name"
+              value={medicationName}
+              onChange={(e) => setMedicationName(e.target.value)}
+              margin="normal"
+              variant="outlined"
+            />
+            <TextField
+              fullWidth
+              label="Dosage"
+              value={dosage}
+              onChange={(e) => setDosage(e.target.value)}
+              margin="normal"
+              variant="outlined"
+            />
+            <TextField
+              fullWidth
+              label="Prescribed By"
+              value={prescribedBy}
+              onChange={(e) => setPrescribedBy(e.target.value)}
+              margin="normal"
+              variant="outlined"
+            />
+            <TextField
+              fullWidth
+              label="Instructions"
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              margin="normal"
+              multiline
+              minRows={3}
+              variant="outlined"
+            />
+            <Button
+              variant="outlined"
+              component="label"
+              fullWidth
+              sx={{ mt: 2, py: 1.5, borderStyle: 'dashed', borderRadius: 2 }}
+            >
+              <CloudUploadIcon sx={{ mr: 1 }} />
+              Upload Prescription File
+              <input
+                type="file"
+                hidden
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+              />
+            </Button>
+            {selectedFile && (
+              <Box sx={{ mt: 2, p: 2, bgcolor: '#F3F4F6', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <DescriptionIcon color="action" />
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {selectedFile.name}
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={() => {
               setOpenDialog(false);
               setError('');
-            }} maxWidth="sm" fullWidth>
-              <DialogTitle>Add New Prescription</DialogTitle>
-              <DialogContent>
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                <TextField
-                  fullWidth
-                  label="Medication Name"
-                  value={medicationName}
-                  onChange={(e) => setMedicationName(e.target.value)}
-                  margin="normal"
-                />
-                <TextField
-                  fullWidth
-                  label="Dosage"
-                  value={dosage}
-                  onChange={(e) => setDosage(e.target.value)}
-                  margin="normal"
-                />
-                <TextField
-                  fullWidth
-                  label="Prescribed By"
-                  value={prescribedBy}
-                  onChange={(e) => setPrescribedBy(e.target.value)}
-                  margin="normal"
-                />
-                <TextField
-                  fullWidth
-                  label="Instructions"
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  margin="normal"
-                  multiline
-                  minRows={2}
-                />
-                <Button
-                  variant="outlined"
-                  component="label"
-                  fullWidth
-                  sx={{ mt: 2 }}
-                >
-                  Upload Prescription
-                  <input
-                    type="file"
-                    hidden
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={handleFileChange}
-                  />
-                </Button>
-                {selectedFile && (
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    Selected file: {selectedFile.name}
-                  </Typography>
-                )}
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={() => {
-                  setOpenDialog(false);
-                  setError('');
-                }} disabled={loading}>
-                  Cancel
-                </Button>
-                <Button onClick={handleUpload} variant="contained" disabled={loading}>
-                  {loading ? 'Uploading...' : 'Upload'}
-                </Button>
-              </DialogActions>
-            </Dialog>
-          </Box>
+            }} disabled={loading} sx={{ color: '#6B7280', textTransform: 'none' }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              variant="contained"
+              disabled={loading}
+              sx={{
+                bgcolor: '#0A4B94',
+                textTransform: 'none',
+                '&:hover': { bgcolor: '#083A75' }
+              }}
+            >
+              {loading ? 'Uploading...' : 'Upload Prescription'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
 
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={7}>
           <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-              All Prescriptions ({prescriptions.length})
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: '#111827' }}>
+                All Prescriptions ({prescriptions.length})
+              </Typography>
+            </Box>
+
             <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
               <TextField
                 fullWidth
@@ -389,24 +428,40 @@ function Prescriptions() {
                     </InputAdornment>
                   ),
                 }}
+                sx={{ flex: 1 }}
               />
               <Button
                 variant="outlined"
                 startIcon={<FilterIcon />}
-                sx={{ textTransform: 'none', minWidth: 100 }}
+                sx={{ textTransform: 'none', minWidth: 100, borderRadius: 2 }}
               >
                 Filter
               </Button>
             </Box>
 
-            {filteredPrescriptions.map((prescription) => (
-              <PrescriptionCard
-                key={prescription.id}
-                prescription={prescription}
-                onDelete={handleDelete}
-                onDownload={handleDownload}
-              />
-            ))}
+            {filteredPrescriptions.length > 0 ? (
+              filteredPrescriptions.map((prescription) => (
+                <PrescriptionCard
+                  key={prescription.id}
+                  prescription={prescription}
+                  onDelete={handleDelete}
+                  onDownload={handleDownload}
+                />
+              ))
+            ) : (
+              <Box sx={{
+                p: 4,
+                textAlign: 'center',
+                border: '2px dashed #E5E9F0',
+                borderRadius: 3,
+                bgcolor: '#F9FAFB'
+              }}>
+                <DescriptionIcon sx={{ fontSize: 48, color: '#9CA3AF', mb: 1 }} />
+                <Typography variant="body1" color="text.secondary">
+                  No prescriptions found
+                </Typography>
+              </Box>
+            )}
           </Box>
         </Grid>
         <Grid item xs={12} lg={5}>
