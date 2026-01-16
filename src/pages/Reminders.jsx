@@ -219,13 +219,18 @@ function Reminders() {
       return;
     }
 
-    if (!medicationName || !scheduledTime) {
+    // Trim values to avoid whitespace-only entries
+    const trimmedMedicationName = medicationName.trim();
+    const trimmedScheduledTime = scheduledTime.trim();
+
+    if (!trimmedMedicationName || !trimmedScheduledTime) {
       setError('Please provide medication name and scheduled time');
+      console.log('Validation failed:', { medicationName: trimmedMedicationName, scheduledTime: trimmedScheduledTime });
       return;
     }
 
     // Validate scheduled time is in the future (optional check)
-    const scheduledDate = new Date(scheduledTime);
+    const scheduledDate = new Date(trimmedScheduledTime);
     if (isNaN(scheduledDate.getTime())) {
       setError('Please provide a valid date and time');
       return;
@@ -234,12 +239,12 @@ function Reminders() {
     try {
       setSubmitting(true);
       setError('');
-      
+
       // Debug logging
       console.log('Current User:', currentUser);
       console.log('User ID:', currentUser?.uid);
       console.log('Is Authenticated:', !!currentUser);
-      
+
       const data = {
         userId: currentUser.uid,
         prescriptionId: selectedPrescriptionId || null,
@@ -249,16 +254,16 @@ function Reminders() {
         status: 'Pending',
         createdAt: serverTimestamp()
       };
-      
+
       console.log('Data being sent:', { ...data, scheduledTime: scheduledDate.toISOString(), createdAt: 'serverTimestamp' });
-      
+
       const docRef = await addDoc(collection(db, 'reminders'), data);
-      setReminders((prev) => [...prev, { 
-        id: docRef.id, 
-        ...data, 
-        scheduledTime: scheduledDate.toISOString() 
+      setReminders((prev) => [...prev, {
+        id: docRef.id,
+        ...data,
+        scheduledTime: scheduledDate.toISOString()
       }]);
-      
+
       setOpenDialog(false);
       setMedicationName('');
       setDosage('');

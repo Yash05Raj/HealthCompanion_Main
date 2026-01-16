@@ -10,165 +10,104 @@ import {
   Stack,
   CircularProgress,
   Alert,
+  Fade,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchMedicines, searchMedicine } from '../services/medicineService';
-
-const formatResponse = (medicine) => {
-  const sections = [
-    `Overview: ${medicine.overview}`,
-    `Common uses: ${medicine.uses.join(', ')}.`,
-    `Typical dosage: ${medicine.dosage}`,
-    `Warnings: ${medicine.warnings.join(' ')}`,
-    `Common side effects: ${medicine.sideEffects.join(', ')}`,
-    'Always consult your healthcare provider for personalized guidance.',
-  ];
-
-  return sections.join('\n');
-};
+import { processMedicineQuery, getChatbotStatus, getSuggestedQuestions } from '../services/chatbotService';
 
 const MedicineChatbot = () => {
   const { currentUser } = useAuth();
   const [messages, setMessages] = useState([
     {
       role: 'bot',
-      text: 'Hi! I can help you explore common medicines.',
+      text: '👋 Hi! I\'m your AI medicine companion powered by Google Gemini and FDA data. Ask me anything about medications, dosages, side effects, or general health topics!',
     },
   ]);
   const [input, setInput] = useState('');
-  const [knowledgeBase, setKnowledgeBase] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState('');
+  const [chatbotStatus, setChatbotStatus] = useState(null);
+  const [currentMedicine, setCurrentMedicine] = useState(null);
   const messagesEndRef = useRef(null);
 
-  // Fetch medicines from Firestore on component mount
+  // Check chatbot status on mount
   useEffect(() => {
-    const loadMedicines = async () => {
-      if (!currentUser) {
-        setError('Please log in to use the medicine chatbot.');
-        setLoading(false);
-        return;
-      }
+    const status = getChatbotStatus();
+    setChatbotStatus(status);
 
-      try {
-        setLoading(true);
-        const medicines = await fetchMedicines();
-        setKnowledgeBase(medicines);
-        // Don't show error if collection is empty - FDA API will handle searches
-        if (medicines.length === 0) {
-          console.log('No cached medicines found. FDA API will be used for searches.');
-        }
-        setError('');
-      } catch (err) {
-        console.error('Error loading medicines:', err);
-        // Don't block the UI - FDA API can still work
-        setKnowledgeBase([]);
-        setError('');
-        console.log('Continuing without cache - FDA API will be used for searches.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMedicines();
+    if (!currentUser) {
+      setError('Please log in to use the medicine chatbot.');
+    } else if (!status.geminiConfigured) {
+      setError('⚠️ Gemini AI is not configured. Please add VITE_GEMINI_API_KEY to your .env file for full chatbot functionality.');
+    }
   }, [currentUser]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
-  // Generate quick suggestions from available medicines
+  // Generate dynamic suggestions based on current context
   const quickSuggestions = useMemo(() => {
-    if (knowledgeBase.length === 0) {
-      return [
-        'Ibuprofen dosage',
-        'Paracetamol side effects',
-        'Amoxicillin precautions',
-        'Metformin instructions',
-        'Cetirizine uses',
-      ];
-    }
-    const meds = knowledgeBase.slice(0, 5);
-    return [
-      `${meds[0]?.name || 'Ibuprofen'} dosage`,
-      `${meds[1]?.name || 'Paracetamol'} side effects`,
-      `${meds[2]?.name || 'Amoxicillin'} precautions`,
-      `${meds[3]?.name || 'Metformin'} instructions`,
-      `${meds[4]?.name || 'Cetirizine'} uses`,
-    ];
-  }, [knowledgeBase]);
-
-  const matcher = useMemo(
-    () => (query) => {
-      const normalized = query.trim().toLowerCase();
-      if (!normalized || knowledgeBase.length === 0) return null;
-      return knowledgeBase.find((med) => {
-        const nameMatch = med.name.toLowerCase().includes(normalized);
-        const aliasMatch = med.aliases?.some((alias) =>
-          normalized.includes(alias.toLowerCase())
-        );
-        return nameMatch || aliasMatch;
-      });
-    },
-    [knowledgeBase]
-  );
+    return getSuggestedQuestions(currentMedicine);
+  }, [currentMedicine]);
 
   const handleSend = async (value) => {
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (!trimmed || loading) return;
 
     const userMessage = { role: 'user', text: trimmed };
     setMessages((prev) => [...prev, userMessage]);
-
-    // Show loading message
-    const loadingMessage = {
-      role: 'bot',
-      text: 'Searching for medicine information...',
-    };
-    setMessages((prev) => [...prev, loadingMessage]);
+    setInput('');
+    setLoading(true);
+    setIsTyping(true);
 
     try {
-      // Try to find medicine in local knowledge base first (fast)
-      let match = matcher(trimmed);
-      
-      // If not found locally, search using the service (checks Firestore cache, then FDA API)
-      if (!match) {
-        try {
-          match = await searchMedicine(trimmed);
-        } catch (err) {
-          console.error('Error searching medicine:', err);
-        }
+      // Get conversation history (exclude the current message)
+      const history = messages.map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'bot',
+        text: msg.text
+      }));
+
+      // Process query with Gemini AI + FDA data
+      const response = await processMedicineQuery(trimmed, history);
+
+      // Update current medicine if found
+      if (response.medicineData) {
+        setCurrentMedicine(response.medicineData);
       }
 
-      // Remove loading message
-      setMessages((prev) => prev.slice(0, -1));
+      // Add AI response to messages
+      const botMessage = {
+        role: 'bot',
+        text: response.text,
+        source: response.source,
+        medicineName: response.medicineData?.name
+      };
 
-      const botMessage = match
-        ? {
-            role: 'bot',
-            text: `Medicine: ${match.name}${match.source === 'FDA' ? ' (via FDA)' : ''}\n${formatResponse(match)}`,
-          }
-        : {
-            role: 'bot',
-            text: `I could not find detailed data for "${trimmed}". Please try:\n• Checking the spelling\n• Using the generic or brand name\n• Asking about a different medicine\n\nFor urgent medical questions, please consult a healthcare professional.`,
-          };
+      setIsTyping(false);
 
-      setMessages((prev) => [...prev, botMessage]);
+      // Small delay for better UX (shows typing indicator briefly)
+      setTimeout(() => {
+        setMessages((prev) => [...prev, botMessage]);
+      }, 300);
+
     } catch (error) {
-      // Remove loading message
-      setMessages((prev) => prev.slice(0, -1));
-      
+      console.error('Error in handleSend:', error);
+      setIsTyping(false);
+
       const errorMessage = {
         role: 'bot',
-        text: 'Sorry, I encountered an error while searching. Please try again or consult a healthcare professional for urgent questions.',
+        text: 'I apologize, but I encountered an error while processing your request. Please try again or rephrase your question. For urgent medical matters, please consult a healthcare professional directly.',
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      setInput('');
+      setLoading(false);
     }
   };
 
@@ -190,45 +129,51 @@ const MedicineChatbot = () => {
         flexDirection: 'column',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <MedicalInformationIcon sx={{ color: '#0A4B94' }} />
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          Medicine Companion
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <MedicalInformationIcon sx={{ color: '#0A4B94' }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            AI Medicine Companion
+          </Typography>
+        </Box>
+        {chatbotStatus?.geminiConfigured && (
+          <Chip
+            icon={<SmartToyIcon />}
+            label="Powered by Gemini"
+            size="small"
+            sx={{ backgroundColor: '#E8F0FE', color: '#0A4B94', fontWeight: 500 }}
+          />
+        )}
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Search evidence-based details about common medications. This assistant is for informational purposes only.
+        Ask me anything about medications! I use official FDA data and AI to provide helpful, conversational answers.
       </Typography>
       <Divider sx={{ mb: 2 }} />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity={chatbotStatus?.geminiConfigured ? "info" : "warning"} sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 3 }}>
-          <CircularProgress size={24} />
-          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-            Loading medicine database...
-          </Typography>
-        </Box>
-      )}
-
-      {!loading && !error && (
-        <Stack direction="row" flexWrap="wrap" spacing={1} sx={{ mb: 2, gap: 1 }}>
-          {quickSuggestions.map((suggestion) => (
-            <Chip
-              key={suggestion}
-              label={suggestion}
-              onClick={() => handleSend(suggestion)}
-              size="small"
-              sx={{ backgroundColor: '#E8F0FE', color: '#0A4B94', fontWeight: 500 }}
-            />
-          ))}
-        </Stack>
-      )}
+      <Stack direction="row" flexWrap="wrap" spacing={1} sx={{ mb: 2, gap: 1 }}>
+        {quickSuggestions.map((suggestion) => (
+          <Chip
+            key={suggestion}
+            label={suggestion}
+            onClick={() => handleSend(suggestion)}
+            size="small"
+            disabled={loading}
+            sx={{
+              backgroundColor: '#E8F0FE',
+              color: '#0A4B94',
+              fontWeight: 500,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              '&:hover': { backgroundColor: loading ? '#E8F0FE' : '#D2E3FC' }
+            }}
+          />
+        ))}
+      </Stack>
 
       <Box
         sx={{
@@ -278,6 +223,37 @@ const MedicineChatbot = () => {
             </Box>
           </Box>
         ))}
+
+        {/* Typing Indicator */}
+        {isTyping && (
+          <Fade in={isTyping}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'flex-start',
+                mb: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1.5,
+                  borderRadius: 2,
+                  backgroundColor: '#F1F5F9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                }}
+              >
+                <CircularProgress size={16} sx={{ color: '#0A4B94' }} />
+                <Typography variant="body2" sx={{ ml: 1, color: '#1F2933' }}>
+                  AI is thinking...
+                </Typography>
+              </Box>
+            </Box>
+          </Fade>
+        )}
+
         <div ref={messagesEndRef} />
       </Box>
 
@@ -285,14 +261,21 @@ const MedicineChatbot = () => {
         <TextField
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about a medicine or dosage..."
+          placeholder="Ask me anything about medicines..."
           fullWidth
           size="small"
+          disabled={loading || !currentUser}
         />
         <IconButton
           color="primary"
           type="submit"
-          sx={{ backgroundColor: '#0A4B94', color: '#FFFFFF', '&:hover': { backgroundColor: '#083A75' } }}
+          disabled={loading || !input.trim() || !currentUser}
+          sx={{
+            backgroundColor: '#0A4B94',
+            color: '#FFFFFF',
+            '&:hover': { backgroundColor: '#083A75' },
+            '&:disabled': { backgroundColor: '#E5E9F0', color: '#9CA3AF' }
+          }}
         >
           <SendIcon />
         </IconButton>

@@ -198,8 +198,9 @@ function Prescriptions() {
       return;
     }
 
-    if (!selectedFile || !medicationName || !dosage || !prescribedBy) {
-      setError('Please fill in all fields and select a file');
+    // Only require text fields, file is optional
+    if (!medicationName || !dosage || !prescribedBy) {
+      setError('Please fill in all required fields (Medication Name, Dosage, and Prescribed By)');
       return;
     }
 
@@ -207,17 +208,20 @@ function Prescriptions() {
       setLoading(true);
       setError('');
 
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-      if (!allowedTypes.includes(selectedFile.type)) {
-        setError('Please upload a PDF or image file (JPEG, PNG)');
-        setLoading(false);
-        return;
-      }
+      // Only validate file if one is selected
+      if (selectedFile) {
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (!allowedTypes.includes(selectedFile.type)) {
+          setError('Please upload a PDF or image file (JPEG, PNG)');
+          setLoading(false);
+          return;
+        }
 
-      if (selectedFile.size > 5 * 1024 * 1024) {
-        setError('File size must be less than 5MB');
-        setLoading(false);
-        return;
+        if (selectedFile.size > 5 * 1024 * 1024) {
+          setError('File size must be less than 5MB');
+          setLoading(false);
+          return;
+        }
       }
 
       const prescriptionData = {
@@ -231,7 +235,7 @@ function Prescriptions() {
       const newPrescription = await addPrescription(
         currentUser.uid,
         prescriptionData,
-        selectedFile
+        selectedFile // Pass null if no file selected
       );
 
       setPrescriptions([...prescriptions, newPrescription]);
@@ -364,7 +368,7 @@ function Prescriptions() {
               sx={{ mt: 2, py: 1.5, borderStyle: 'dashed', borderRadius: 2 }}
             >
               <CloudUploadIcon sx={{ mr: 1 }} />
-              Upload Prescription File
+              Upload Prescription File (Optional)
               <input
                 type="file"
                 hidden

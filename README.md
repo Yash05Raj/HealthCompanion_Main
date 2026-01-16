@@ -1,215 +1,85 @@
 # HealthCompanion 🏥
 
-A comprehensive health management application that helps users track prescriptions, manage medication reminders, and access medicine information through an AI-powered chatbot.
+A comprehensive health management application for tracking prescriptions, managing medication reminders, and accessing medicine information through an AI-powered chatbot.
 
 ## 🌟 Features
 
-### 📋 Prescription Management
-- Upload and store prescription images securely in Firebase Storage
-- OCR text extraction from prescription images
-- View and manage all your prescriptions in one place
-- Track prescription details and medication information
-
-### ⏰ Medication Reminders
-- Set custom medication reminders with flexible scheduling
-- Multiple frequency options: Daily, Weekly, Monthly, or Custom intervals
-- Visual medication tracking with status indicators
-- Mark medications as taken with timestamp tracking
-- Persistent reminder notifications
-
-### 🤖 AI-Powered Medicine Chatbot
-- Get instant information about medications
-- Powered by Google's Gemini AI
-- Integration with FDA OpenFDA API for accurate drug information
-- Ask questions about drug interactions, side effects, and usage
-
-### 📊 Dashboard
-- Overview of upcoming medication reminders
-- Quick access to recent prescriptions
-- Health statistics and insights
-- User-friendly interface with Material-UI components
-
-### 🔐 User Authentication
-- Secure Firebase Authentication
-- User registration and login
-- Profile management
-- Privacy settings and data control
+- **Prescription Management** - Upload and track prescriptions (file upload optional)
+- **Medication Reminders** - Set custom reminders with flexible scheduling
+- **AI Medicine Chatbot** - Get instant medication info powered by Google Gemini AI and FDA data
+- **Dashboard** - Overview of reminders and recent prescriptions
+- **Secure Authentication** - Firebase-based user authentication
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **React** - UI library
-- **Vite** - Build tool and dev server
-- **Material-UI (MUI)** - Component library
-- **React Router** - Navigation and routing
-- **Emotion** - CSS-in-JS styling
+**Frontend:** React, Vite, Material-UI, React Router  
+**Backend:** Firebase (Auth, Firestore, Storage), Google Gemini AI, OpenFDA API
 
-### Backend & Services
-- **Firebase Authentication** - User authentication
-- **Firebase Firestore** - NoSQL database for user data
-- **Firebase Storage** - Cloud storage for prescription images
-- **Google Gemini AI** - AI chatbot functionality
-- **OpenFDA API** - Medicine and drug information
-
-## 📁 Project Structure
-
-```
-HealthCompanion/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   ├── MedicineChatbot.jsx
-│   │   ├── ProfileSetup.jsx
-│   │   └── Sidebar.jsx
-│   ├── contexts/            # React context providers
-│   │   └── AuthContext.jsx
-│   ├── pages/              # Main application pages
-│   │   ├── Dashboard.jsx
-│   │   ├── Login.jsx
-│   │   ├── Prescriptions.jsx
-│   │   ├── Privacy.jsx
-│   │   ├── Reminders.jsx
-│   │   ├── Settings.jsx
-│   │   └── SignUp.jsx
-│   ├── services/           # API and service integrations
-│   │   ├── fdaService.js
-│   │   ├── geminiService.js
-│   │   ├── medicineService.js
-│   │   └── storageService.js
-│   ├── App.jsx             # Main application component
-│   ├── firebase.js         # Firebase configuration
-│   ├── index.css           # Global styles
-│   └── main.jsx            # Application entry point
-├── public/                 # Static assets
-├── scripts/                # Utility scripts
-├── .env                    # Environment variables
-├── firestore.rules         # Firestore security rules
-├── storage.rules           # Storage security rules
-├── index.html              # HTML template
-├── package.json            # Dependencies and scripts
-└── vite.config.js          # Vite configuration
-```
-
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
+- Node.js (v16+)
 - Firebase account
 - Google Gemini API key
-- FDA API access (optional, for enhanced medicine data)
 
 ### Installation
 
-1. **Clone the repository**
+1. **Clone and install**
    ```bash
    git clone https://github.com/Yash05Raj/HealthCompanion_Main.git
-   cd HealthCompanion
-   ```
-
-2. **Install dependencies**
-   ```bash
+   cd HealthCompanion_Main
    npm install
    ```
 
-3. **Set up environment variables**
+2. **Configure environment**
    
-   Create a `.env` file in the root directory with the following variables:
+   Create `.env` file:
    ```env
-   # Firebase Configuration
    VITE_FIREBASE_API_KEY=your_firebase_api_key
    VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
    VITE_FIREBASE_PROJECT_ID=your_project_id
    VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
    VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
    VITE_FIREBASE_APP_ID=your_app_id
-
-   # Google Gemini AI
    VITE_GEMINI_API_KEY=your_gemini_api_key
-
-   # FDA API (Optional)
-   VITE_FDA_API_KEY=your_fda_api_key
    ```
 
-4. **Configure Firebase**
-   - Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
-   - Enable Authentication (Email/Password)
-   - Create a Firestore database
-   - Enable Firebase Storage
-   - Update the security rules using `firestore.rules` and `storage.rules`
+3. **Set up Firebase**
+   - Create project at [Firebase Console](https://console.firebase.google.com/)
+   - Enable Authentication, Firestore, and Storage
+   - Deploy security rules:
+     ```bash
+     npm install -g firebase-tools
+     firebase login
+     firebase deploy --only firestore:rules,storage:rules
+     ```
 
-5. **Run the development server**
+4. **Run the app**
    ```bash
    npm run dev
    ```
 
-6. **Build for production**
-   ```bash
-   npm run build
-   ```
-
-7. **Preview production build**
-   ```bash
-   npm run preview
-   ```
-
-## 🔧 Configuration
-
-### Firebase Security Rules
-
-The project includes security rules for both Firestore and Storage:
-
-- **Firestore Rules** (`firestore.rules`): Controls access to user data, prescriptions, and reminders
-- **Storage Rules** (`storage.rules`): Manages access to prescription images
-
-Make sure to deploy these rules to your Firebase project.
-
-### API Keys
-
-- **Gemini API**: Required for the AI chatbot functionality
-- **FDA API**: Optional, enhances medicine information accuracy
-
 ## 📱 Usage
 
-1. **Sign Up / Login**: Create an account or log in with existing credentials
-2. **Complete Profile**: Set up your health profile (optional)
-3. **Upload Prescriptions**: Take photos or upload prescription images
-4. **Set Reminders**: Create medication reminders with custom schedules
-5. **Track Medications**: Mark medications as taken from the dashboard
-6. **Ask Questions**: Use the AI chatbot to get medicine information
+1. Sign up or log in
+2. Upload prescriptions (file optional)
+3. Set medication reminders
+4. Ask the AI chatbot about medicines
 
 ## 🔒 Privacy & Security
 
-- All user data is stored securely in Firebase
-- Prescription images are stored in Firebase Storage with user-specific access controls
-- Authentication is handled by Firebase Auth
-- Privacy settings available in the Settings page
-- Data can be exported or deleted upon request
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+- Secure Firebase authentication
+- User-specific data access controls
+- HIPAA-compliant data handling
 
 ## 👨‍💻 Author
 
-**Yash Raj**
-- GitHub: [@Yash05Raj](https://github.com/Yash05Raj)
+**Yash Raj** - [@Yash05Raj](https://github.com/Yash05Raj)
 
-## 🙏 Acknowledgments
+## 📄 License
 
-- Material-UI for the component library
-- Firebase for backend services
-- Google Gemini AI for chatbot functionality
-- OpenFDA for medicine data
-- React and Vite communities
-
-## 📞 Support
-
-For support, please open an issue in the GitHub repository or contact the maintainer.
+MIT License
 
 ---
 
-**Note**: This application is for informational purposes only and should not replace professional medical advice. Always consult with healthcare professionals for medical decisions.
+**Disclaimer**: This app is for informational purposes only. Always consult healthcare professionals for medical advice.
