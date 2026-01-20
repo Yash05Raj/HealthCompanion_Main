@@ -2,10 +2,6 @@
 
 A comprehensive health management application for tracking prescriptions, managing medication reminders, and accessing medicine information through an AI-powered chatbot.
 
-[![Production Ready](https://img.shields.io/badge/status-production%20ready-brightgreen)]()
-[![React](https://img.shields.io/badge/React-18.x-blue)]()
-[![Firebase](https://img.shields.io/badge/Firebase-10.x-orange)]()
-[![Gemini AI](https://img.shields.io/badge/Gemini-AI%20Powered-purple)]()
 
 ## 🌟 Features
 
@@ -146,25 +142,6 @@ The application has been comprehensively tested with 100% feature coverage:
 - ✅ Data persistence
 - ✅ Navigation and routing
 
-## 🚀 Deployment
-
-### Firebase Hosting
-```bash
-npm run build
-firebase deploy
-```
-
-### Vercel
-```bash
-npm run build
-vercel --prod
-```
-
-### Netlify
-```bash
-npm run build
-netlify deploy --prod
-```
 
 ## 🤝 Contributing
 
@@ -182,23 +159,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - GitHub: [@Yash05Raj](https://github.com/Yash05Raj)
 - Email: yashrajsinha05@gmail.com
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Material-UI for the component library
-- Firebase for backend services
-- Google Gemini AI for chatbot functionality
-- OpenFDA for medicine data
-- React and Vite communities
-
-## 📞 Support
-
-For support, please open an issue in the GitHub repository or contact the maintainer.
-
----
 
 **⚠️ Disclaimer**: This application is for informational purposes only and should not replace professional medical advice. Always consult healthcare professionals for medical decisions.
 
